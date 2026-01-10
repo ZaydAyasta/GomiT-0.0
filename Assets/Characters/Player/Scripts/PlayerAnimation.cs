@@ -10,8 +10,11 @@ public class PlayerAnimation : MonoBehaviour
 
     private Animator animator;
     private Coroutine idleCoroutine;
-    private int idleIndexParam = Animator.StringToHash("IdleIndex");
-    private int speedParam = Animator.StringToHash("Speed");
+
+    private readonly int idleIndexParam = Animator.StringToHash("IdleIndex");
+    private readonly int speedParam = Animator.StringToHash("Speed");
+
+    private int lastIdleIndex = -1;
 
     private void Awake()
     {
@@ -25,7 +28,10 @@ public class PlayerAnimation : MonoBehaviour
 
     public void SetSpeed(float value)
     {
+        if (!gameObject.activeInHierarchy) return;
+
         animator.SetFloat(speedParam, value);
+
         if (Mathf.Abs(value) <= idleSpeedThreshold)
         {
             if (idleCoroutine == null)
@@ -33,12 +39,7 @@ public class PlayerAnimation : MonoBehaviour
         }
         else
         {
-            if (idleCoroutine != null)
-            {
-                StopCoroutine(idleCoroutine);
-                idleCoroutine = null;
-            }
-            animator.SetInteger(idleIndexParam, 0);
+            StopIdleRoutine();
         }
     }
 
@@ -49,47 +50,75 @@ public class PlayerAnimation : MonoBehaviour
             float wait = Random.Range(playerData.idleMinDelay, playerData.idleMaxDelay);
             yield return new WaitForSeconds(wait);
 
-            int choice = ChooseWeightedIndex(playerData.idleProbabilities) + 1;
-            animator.SetInteger(idleIndexParam, choice);
+            int idleIndex = ChooseNextIdleIndex();
+            animator.SetInteger(idleIndexParam, idleIndex);
 
-            float length = GetAnimationClipLengthForIdle(choice);
-            yield return new WaitForSeconds(length > 0 ? length : idlePlayDuration);
+            float clipLength = GetAnimationClipLength(idleIndex);
+            yield return new WaitForSeconds(
+                clipLength > 0f ? clipLength : idlePlayDuration
+            );
 
             animator.SetInteger(idleIndexParam, 0);
         }
     }
 
+    private int ChooseNextIdleIndex()
+    {
+        int index;
+        do
+        {
+            index = ChooseWeightedIndex(playerData.idleProbabilities) + 1;
+        }
+        while (index == lastIdleIndex);
+
+        lastIdleIndex = index;
+        return index;
+    }
+
     private int ChooseWeightedIndex(float[] weights)
     {
         float total = 0f;
-        foreach (var w in weights) total += w;
+        foreach (float w in weights) total += w;
+
         float r = Random.Range(0f, total);
         float acc = 0f;
+
         for (int i = 0; i < weights.Length; i++)
         {
             acc += weights[i];
-            if (r <= acc) return i;
+            if (r <= acc)
+                return i;
         }
+
         return weights.Length - 1;
     }
 
-    private float GetAnimationClipLengthForIdle(int idleIndex)
+    private float GetAnimationClipLength(int idleIndex)
     {
         string clipName = $"idle{idleIndex}";
+
         foreach (var clip in animator.runtimeAnimatorController.animationClips)
         {
-            if (clip.name == clipName) return clip.length;
+            if (clip.name == clipName)
+                return clip.length;
         }
+
         return 0f;
     }
 
-    private void OnDisable()
+    private void StopIdleRoutine()
     {
         if (idleCoroutine != null)
         {
             StopCoroutine(idleCoroutine);
             idleCoroutine = null;
         }
+
+        animator.SetInteger(idleIndexParam, 0);
     }
 
+    private void OnDisable()
+    {
+        StopIdleRoutine();
+    }
 }

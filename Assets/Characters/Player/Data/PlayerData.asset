@@ -19,7 +19,8 @@ MonoBehaviour:
   jumpForce: 8
   idleMinDelay: 3
   idleMaxDelay: 8
-  idleWeights:
+  idleProbabilities:
   - 1
-  - 0.6
+  - 0.1
+  - 0.5
   groundCheckRadius: 0.1
