@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Player/PlayerData")]
+[CreateAssetMenu(menuName = "Characters/Player/PlayerData")]
 public class PlayerData : ScriptableObject
 {
     [Header("Movement")]
@@ -14,7 +14,7 @@ public class PlayerData : ScriptableObject
     public float idleMinDelay = 3f;
     public float idleMaxDelay = 8f;
 
-    public float[] idleProbabilities = new float[] { 1f, 0.6f };
+    public float[] idleProbabilities = new float[] { 1f, 0.6f, 0.3f };
 
     [Header("Other")]
     public float groundCheckRadius = 0.1f;
