@@ -15,7 +15,10 @@ public class PlayerInputHandler : MonoBehaviour
     public void OnJump(InputAction.CallbackContext ctx)
     {
         if (ctx.performed)
+        {
+            Debug.Log("JUMP");
             JumpPressed = true;
+        }
     }
 
     public void OnRun(InputAction.CallbackContext ctx)

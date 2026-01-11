@@ -15,7 +15,7 @@ public class PlayerAnimation : MonoBehaviour
     private readonly int speedParam = Animator.StringToHash("Speed");
     private readonly int idleChoiceParam = Animator.StringToHash("IdleChoice");
     private readonly int idleTriggerParam = Animator.StringToHash("IdleTrigger");
-
+    private readonly int groundedParam = Animator.StringToHash("isGrounded");
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -24,6 +24,12 @@ public class PlayerAnimation : MonoBehaviour
     public void SetSpeed(float speed)
     {
         animator.SetFloat(speedParam, speed);
+
+        if (!animator.GetBool(groundedParam))
+        {
+            StopIdleRoutine();
+            return;
+        }
 
         if (Mathf.Abs(speed) <= idleSpeedThreshold)
         {
