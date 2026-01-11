@@ -6,33 +6,26 @@ public class PlayerAnimation : MonoBehaviour
 {
     public PlayerData playerData;
     public float idleSpeedThreshold = 0.1f;
-    public float idlePlayDuration = 2.0f;
 
     private Animator animator;
     private Coroutine idleCoroutine;
 
-    private readonly int idleIndexParam = Animator.StringToHash("IdleIndex");
-    private readonly int speedParam = Animator.StringToHash("Speed");
+    private int lastIdleChoice = -1;
 
-    private int lastIdleIndex = -1;
+    private readonly int speedParam = Animator.StringToHash("Speed");
+    private readonly int idleChoiceParam = Animator.StringToHash("IdleChoice");
+    private readonly int idleTriggerParam = Animator.StringToHash("IdleTrigger");
 
     private void Awake()
     {
         animator = GetComponent<Animator>();
     }
 
-    private void OnEnable()
+    public void SetSpeed(float speed)
     {
-        animator.SetInteger(idleIndexParam, 0);
-    }
+        animator.SetFloat(speedParam, speed);
 
-    public void SetSpeed(float value)
-    {
-        if (!gameObject.activeInHierarchy) return;
-
-        animator.SetFloat(speedParam, value);
-
-        if (Mathf.Abs(value) <= idleSpeedThreshold)
+        if (Mathf.Abs(speed) <= idleSpeedThreshold)
         {
             if (idleCoroutine == null)
                 idleCoroutine = StartCoroutine(IdleRoutine());
@@ -47,63 +40,68 @@ public class PlayerAnimation : MonoBehaviour
     {
         while (true)
         {
-            float wait = Random.Range(playerData.idleMinDelay, playerData.idleMaxDelay);
-            yield return new WaitForSeconds(wait);
-
-            int idleIndex = ChooseNextIdleIndex();
-            animator.SetInteger(idleIndexParam, idleIndex);
-
-            float clipLength = GetAnimationClipLength(idleIndex);
-            yield return new WaitForSeconds(
-                clipLength > 0f ? clipLength : idlePlayDuration
+            float wait = Random.Range(
+                playerData.idleMinDelay,
+                playerData.idleMaxDelay
             );
 
-            animator.SetInteger(idleIndexParam, 0);
+            yield return new WaitForSeconds(wait);
+
+            int idleChoice = ChooseWeightedIndex(playerData.idleProbabilities);
+
+            animator.SetInteger(idleChoiceParam, idleChoice);
+            animator.SetTrigger(idleTriggerParam);
+
+            yield return WaitForIdleToFinish();
         }
     }
 
-    private int ChooseNextIdleIndex()
+    private IEnumerator WaitForIdleToFinish()
     {
-        int index;
-        do
-        {
-            index = ChooseWeightedIndex(playerData.idleProbabilities) + 1;
-        }
-        while (index == lastIdleIndex);
+        yield return null;
 
-        lastIdleIndex = index;
-        return index;
+        while (IsInIdleBase())
+            yield return null;
+
+        while (!IsInIdleBase())
+            yield return null;
+    }
+
+    private bool IsInIdleBase()
+    {
+        AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
+        return info.IsName("idle1");
     }
 
     private int ChooseWeightedIndex(float[] weights)
     {
-        float total = 0f;
-        foreach (float w in weights) total += w;
+        int index;
 
-        float r = Random.Range(0f, total);
-        float acc = 0f;
-
-        for (int i = 0; i < weights.Length; i++)
+        do
         {
-            acc += weights[i];
-            if (r <= acc)
-                return i;
+            float total = 0f;
+            foreach (float w in weights)
+                total += w;
+
+            float r = Random.Range(0f, total);
+            float acc = 0f;
+
+            index = weights.Length - 1;
+
+            for (int i = 0; i < weights.Length; i++)
+            {
+                acc += weights[i];
+                if (r <= acc)
+                {
+                    index = i;
+                    break;
+                }
+            }
         }
+        while (index == lastIdleChoice && weights.Length > 1);
 
-        return weights.Length - 1;
-    }
-
-    private float GetAnimationClipLength(int idleIndex)
-    {
-        string clipName = $"idle{idleIndex}";
-
-        foreach (var clip in animator.runtimeAnimatorController.animationClips)
-        {
-            if (clip.name == clipName)
-                return clip.length;
-        }
-
-        return 0f;
+        lastIdleChoice = index;
+        return index;
     }
 
     private void StopIdleRoutine()
@@ -113,8 +111,6 @@ public class PlayerAnimation : MonoBehaviour
             StopCoroutine(idleCoroutine);
             idleCoroutine = null;
         }
-
-        animator.SetInteger(idleIndexParam, 0);
     }
 
     private void OnDisable()

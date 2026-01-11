@@ -21,6 +21,6 @@ MonoBehaviour:
   idleMaxDelay: 8
   idleProbabilities:
   - 1
-  - 0.1
+  - 0.6
   - 0.5
   groundCheckRadius: 0.1
