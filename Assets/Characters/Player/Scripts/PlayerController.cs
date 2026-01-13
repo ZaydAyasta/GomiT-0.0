@@ -27,6 +27,7 @@ public class PlayerController : MonoBehaviour
         GetComponent<PlayerAnimation>()?.SetSpeed(speed);
 
         animator.SetBool("isGrounded", isGrounded);
+        animator.SetFloat("yVelocity", rb.linearVelocity.y);
 
         if (input.JumpPressed && isGrounded)
         {
