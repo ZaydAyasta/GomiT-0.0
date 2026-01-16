@@ -3,6 +3,10 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
 {
+    // Debug
+    private float debugTimer;
+    public float debugInterval = 0.2f;
+
     public PlayerData data;
     public PlayerInputHandler input;
     public Transform groundCheck;
@@ -26,8 +30,20 @@ public class PlayerController : MonoBehaviour
         float speed = Mathf.Abs(input.Move.x);
         GetComponent<PlayerAnimation>()?.SetSpeed(speed);
 
+        float yVel = rb.linearVelocity.y;
+
         animator.SetBool("isGrounded", isGrounded);
-        animator.SetFloat("yVelocity", rb.linearVelocity.y);
+        animator.SetFloat("yVelocity", yVel);
+
+        // Aquí se controla el intervalo del Debug.Log
+        debugTimer += Time.deltaTime;
+        if (debugTimer >= debugInterval)
+        {
+            Debug.Log(
+                $"[PlayerController] yVelocity: {yVel:F3} | isGrounded: {isGrounded}"
+            );
+            debugTimer = 0f;
+        }
 
         if (input.JumpPressed && isGrounded)
         {
@@ -45,8 +61,6 @@ public class PlayerController : MonoBehaviour
 
     private void Jump()
     {
-        isGrounded = false;
-
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
         rb.AddForce(Vector2.up * data.jumpForce, ForceMode2D.Impulse);
 

@@ -530,7 +530,7 @@ Transform:
   m_GameObject: {fileID: 776883910}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -1.864, z: 0}
+  m_LocalPosition: {x: 0, y: -1.211, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -845,6 +845,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4046850af8cb4b418110d452221104c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  debugInterval: 0.2
   data: {fileID: 11400000, guid: 73f320d8bcf8ede4fa5494342b5b6f15, type: 2}
   input: {fileID: 2055992175}
   groundCheck: {fileID: 776883911}
@@ -877,7 +878,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!114 &2055992178
 MonoBehaviour:
   m_ObjectHideFlags: 0
