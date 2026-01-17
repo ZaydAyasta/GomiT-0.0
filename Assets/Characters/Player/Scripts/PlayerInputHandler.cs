@@ -16,7 +16,7 @@ public class PlayerInputHandler : MonoBehaviour
     {
         if (ctx.performed)
         {
-            Debug.Log("JUMP");
+            //Debug.Log("JUMP");
             JumpPressed = true;
         }
     }

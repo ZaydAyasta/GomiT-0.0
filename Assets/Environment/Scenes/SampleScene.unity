@@ -852,6 +852,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
+  groundCheckSize: {x: 0.9, y: 0.15}
 --- !u!50 &2055992177
 Rigidbody2D:
   serializedVersion: 5

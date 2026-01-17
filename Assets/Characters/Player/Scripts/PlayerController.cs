@@ -15,6 +15,8 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
 
+    [Header("Ground Check")]
+    public Vector2 groundCheckSize = new Vector2(0.6f, 0.15f);
     private bool isGrounded;
 
     private void Awake()
@@ -36,14 +38,14 @@ public class PlayerController : MonoBehaviour
         animator.SetFloat("yVelocity", yVel);
 
         // Aquí se controla el intervalo del Debug.Log
-        debugTimer += Time.deltaTime;
-        if (debugTimer >= debugInterval)
-        {
-            Debug.Log(
-                $"[PlayerController] yVelocity: {yVel:F3} | isGrounded: {isGrounded}"
-            );
-            debugTimer = 0f;
-        }
+        //debugTimer += Time.deltaTime;
+        //if (debugTimer >= debugInterval)
+        //{
+        //    Debug.Log(
+        //        $"[PlayerController] yVelocity: {yVel:F3} | isGrounded: {isGrounded}"
+        //    );
+        //    debugTimer = 0f;
+        //}
 
         if (input.JumpPressed && isGrounded)
         {
@@ -69,18 +71,25 @@ public class PlayerController : MonoBehaviour
 
     private void CheckGround()
     {
-        isGrounded = Physics2D.OverlapCircle(
+        isGrounded = Physics2D.OverlapBox(
             groundCheck.position,
-            data.groundCheckRadius,
+            groundCheckSize,
+            0f,
             groundLayer
         );
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        if (groundCheck == null) return;
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(groundCheck.position, data.groundCheckRadius);
-    }
+private void OnDrawGizmosSelected()
+{
+    if (groundCheck == null) return;
+
+    Gizmos.color = Color.red;
+    Gizmos.DrawWireCube(
+        groundCheck.position,
+        groundCheckSize
+    );
+}
+
+
 }
