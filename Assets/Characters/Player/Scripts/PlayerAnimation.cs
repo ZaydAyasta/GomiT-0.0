@@ -21,11 +21,11 @@ public class PlayerAnimation : MonoBehaviour
         animator = GetComponent<Animator>();
     }
 
-    public void SetSpeed(float speed)
+    public void SetSpeed(float speed, bool grounded)
     {
         animator.SetFloat(speedParam, speed);
 
-        if (!animator.GetBool(groundedParam))
+        if (!grounded)
         {
             StopIdleRoutine();
             return;

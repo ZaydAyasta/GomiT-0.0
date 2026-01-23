@@ -30,22 +30,16 @@ public class PlayerController : MonoBehaviour
         CheckGround();
 
         float speed = Mathf.Abs(input.Move.x);
-        GetComponent<PlayerAnimation>()?.SetSpeed(speed);
-
         float yVel = rb.linearVelocity.y;
 
         animator.SetBool("isGrounded", isGrounded);
         animator.SetFloat("yVelocity", yVel);
 
-        // Aquí se controla el intervalo del Debug.Log
-        //debugTimer += Time.deltaTime;
-        //if (debugTimer >= debugInterval)
-        //{
-        //    Debug.Log(
-        //        $"[PlayerController] yVelocity: {yVel:F3} | isGrounded: {isGrounded}"
-        //    );
-        //    debugTimer = 0f;
-        //}
+        //te odio animacion de walk1
+        bool isInAir = !isGrounded || Mathf.Abs(yVel) > 0.1f;
+        animator.SetBool("isInAir", isInAir);
+
+        GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
 
         if (input.JumpPressed && isGrounded)
         {
