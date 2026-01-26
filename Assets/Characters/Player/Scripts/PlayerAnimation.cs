@@ -13,9 +13,8 @@ public class PlayerAnimation : MonoBehaviour
     private int lastIdleChoice = -1;
 
     private readonly int speedParam = Animator.StringToHash("Speed");
-    private readonly int idleChoiceParam = Animator.StringToHash("IdleChoice");
-    private readonly int idleTriggerParam = Animator.StringToHash("IdleTrigger");
-    private readonly int groundedParam = Animator.StringToHash("isGrounded");
+    private readonly int idleIndexParam = Animator.StringToHash("IdleIndex");
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -28,6 +27,7 @@ public class PlayerAnimation : MonoBehaviour
         if (!grounded)
         {
             StopIdleRoutine();
+            animator.SetFloat(idleIndexParam, 0f);
             return;
         }
 
@@ -39,6 +39,7 @@ public class PlayerAnimation : MonoBehaviour
         else
         {
             StopIdleRoutine();
+            animator.SetFloat(idleIndexParam, 0f);
         }
     }
 
@@ -55,28 +56,22 @@ public class PlayerAnimation : MonoBehaviour
 
             int idleChoice = ChooseWeightedIndex(playerData.idleProbabilities);
 
-            animator.SetInteger(idleChoiceParam, idleChoice);
-            animator.SetTrigger(idleTriggerParam);
+            animator.SetFloat(idleIndexParam, idleChoice);
 
-            yield return WaitForIdleToFinish();
+            yield return WaitForIdleClip(idleChoice);
+
+            animator.SetFloat(idleIndexParam, 0f);
         }
     }
 
-    private IEnumerator WaitForIdleToFinish()
+    private IEnumerator WaitForIdleClip(int idleIndex)
     {
-        yield return null;
+        yield return null; 
 
-        while (IsInIdleBase())
-            yield return null;
-
-        while (!IsInIdleBase())
-            yield return null;
-    }
-
-    private bool IsInIdleBase()
-    {
         AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
-        return info.IsName("idle1");
+        float clipLength = info.length;
+
+        yield return new WaitForSeconds(clipLength);
     }
 
     private int ChooseWeightedIndex(float[] weights)
