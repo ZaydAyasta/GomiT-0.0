@@ -9,16 +9,23 @@ public class PlayerController : MonoBehaviour
 
     public PlayerData data;
     public PlayerInputHandler input;
-    public Transform groundCheck;
-    public LayerMask groundLayer;
 
     private Rigidbody2D rb;
     private Animator animator;
     private SpriteRenderer spriteRenderer;
 
+    [Header("Wall Check")]
+    public Transform wallCheck;
+    public Vector2 wallCheckSize = new Vector2(0.1f, 1.8f);
+    public LayerMask wallLayer;
+    public float wallCheckOffsetX = 0.6f;
+
     [Header("Ground Check")]
     public Vector2 groundCheckSize = new Vector2(0.6f, 0.15f);
+    public Transform groundCheck;
+    public LayerMask groundLayer;
     private bool isGrounded;
+    private bool isTouchingWall;
 
     private void Awake()
     {
@@ -30,6 +37,8 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         CheckGround();
+        UpdateWallCheckPosition();
+        CheckWall();
 
         float horizontalInput = input.Move.x;
         float speed = Mathf.Abs(horizontalInput);
@@ -60,14 +69,20 @@ public class PlayerController : MonoBehaviour
         float targetSpeed = input.Move.x *
             (input.RunHeld ? data.runSpeed : data.walkSpeed);
 
-        rb.linearVelocity = new Vector2(targetSpeed, rb.linearVelocity.y);
+        if (!isGrounded && isTouchingWall && Mathf.Abs(targetSpeed) > 0.01f)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+        }
+        else
+        {
+            rb.linearVelocity = new Vector2(targetSpeed, rb.linearVelocity.y);
+        }
     }
 
     private void Jump()
     {
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
         rb.AddForce(Vector2.up * data.jumpForce, ForceMode2D.Impulse);
-
         animator.SetTrigger("Jump");
     }
 
@@ -81,14 +96,42 @@ public class PlayerController : MonoBehaviour
         );
     }
 
+    private void CheckWall()
+    {
+        isTouchingWall = Physics2D.OverlapBox(
+            wallCheck.position,
+            wallCheckSize,
+            0f,
+            wallLayer
+        );
+    }
+
+    private void UpdateWallCheckPosition()
+    {
+        if (spriteRenderer == null || wallCheck == null)
+            return;
+
+        float dir = spriteRenderer.flipX ? -1f : 1f;
+        wallCheck.localPosition = new Vector3(
+            wallCheckOffsetX * dir,
+            wallCheck.localPosition.y,
+            0f
+        );
+    }
+
+
     private void OnDrawGizmosSelected()
     {
-        if (groundCheck == null) return;
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
+        }
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(
-            groundCheck.position,
-            groundCheckSize
-        );
+        if (wallCheck != null)
+        {
+            Gizmos.color = Color.blue;
+            Gizmos.DrawWireCube(wallCheck.position, wallCheckSize);
+        }
     }
 }

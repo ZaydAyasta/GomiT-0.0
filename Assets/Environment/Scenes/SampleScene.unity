@@ -119,6 +119,37 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &227138959
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 227138960}
+  m_Layer: 8
+  m_Name: wallCheck
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &227138960
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 227138959}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.581, y: 0.06, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2055992174}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &426978631
 GameObject:
   m_ObjectHideFlags: 0
@@ -819,6 +850,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 776883911}
+  - {fileID: 227138960}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2055992175
@@ -848,11 +880,17 @@ MonoBehaviour:
   debugInterval: 0.2
   data: {fileID: 11400000, guid: 73f320d8bcf8ede4fa5494342b5b6f15, type: 2}
   input: {fileID: 2055992175}
+  wallCheck: {fileID: 227138960}
+  wallCheckSize: {x: 0.1, y: 2.37}
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  wallCheckOffsetX: 0.6
+  groundCheckSize: {x: 0.9, y: 0.15}
   groundCheck: {fileID: 776883911}
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
-  groundCheckSize: {x: 0.9, y: 0.15}
 --- !u!50 &2055992177
 Rigidbody2D:
   serializedVersion: 5
@@ -928,7 +966,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0.060377598}
+  m_Offset: {x: 0.0021998882, y: 0.060377598}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -938,7 +976,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.07, y: 2.329245}
+  m_Size: {x: 0.9072232, y: 2.329245}
   m_EdgeRadius: 0
 --- !u!114 &2055992180
 MonoBehaviour:
