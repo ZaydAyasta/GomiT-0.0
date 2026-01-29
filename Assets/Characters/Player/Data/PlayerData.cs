@@ -14,7 +14,14 @@ public class PlayerData : ScriptableObject
     public float idleMinDelay = 3f;
     public float idleMaxDelay = 8f;
 
-    public float[] idleProbabilities = new float[] { 1f, 0.6f, 0.3f };
+    [Tooltip("Probabilidad por idle (índice del Blend Tree)")]
+    public float[] idleProbabilities = new float[] { 0f, 0.6f, 0.3f };
+
+    [Tooltip("Cooldown mínimo por idle")]
+    public float[] idleCooldownMin = new float[] { 0f, 0f, 0f };
+
+    [Tooltip("Cooldown máximo por idle")]
+    public float[] idleCooldownMax = new float[] { 0f, 0f, 0f };
 
     [Header("Other")]
     public float groundCheckRadius = 0.1f;
