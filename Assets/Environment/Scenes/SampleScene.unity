@@ -932,6 +932,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
   playerData: {fileID: 11400000, guid: 73f320d8bcf8ede4fa5494342b5b6f15, type: 2}
   idleSpeedThreshold: 0.1
+  specialBaseAnimatorIndex: 3
+  debugLogs: 0
 --- !u!61 &2055992179
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -17,11 +17,17 @@ MonoBehaviour:
   acceleration: 20
   deceleration: 30
   jumpForce: 8
-  idleMinDelay: 3
-  idleMaxDelay: 8
-  idleProbabilities:
-  - 1
-  - 0.6
-  - 0.5
+  idleToTransitionDelay: 10
+  transitionToLoopDelay: 4
+  specialIdleProbabilities:
   - 0.8
+  - 0.05
+  specialIdleCooldownMin:
+  - 1
+  - 4
+  specialIdleCooldownMax:
+  - 1.6
+  - 18
   groundCheckRadius: 0.1
+  blinkSpecialIndex: 0
+  blinkCanRepeat: 1
