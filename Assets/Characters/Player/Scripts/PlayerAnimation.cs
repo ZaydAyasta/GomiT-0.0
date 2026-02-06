@@ -238,21 +238,12 @@ public class PlayerAnimation : MonoBehaviour
             Debug.Log($"[Idle] Cooldown special {index}: {cd:F2}s (until {specialNextAllowedTime[index]:F2})");
     }
 
-    /// <summary>
-    /// Al entrar a tieso/loop inicializamos (seed) los specialNextAllowedTime para que
-    /// no salgan inmediatamente si así lo deseas.
-    /// Comportamiento:
-    /// - Para el special que es "blink" (playerData.blinkSpecialIndex) y si blinkCanRepeat==true,
-    ///   dejamos su nextAllowedTime = Time.time (disponible inmediatamente).
-    /// - Para los demás sets nextAllowedTime = Time.time + Random(min,max)
-    ///   usando los cooldowns configurados en PlayerData.
-    /// </summary>
+    // seed pa los cooldowns
     private void SeedInitialSpecialCooldowns()
     {
         int n = playerData.specialIdleProbabilities?.Length ?? 0;
         for (int i = 0; i < n; i++)
         {
-            // si no hay probabilidad, marcar disponible
             if (playerData.specialIdleProbabilities[i] <= 0f)
             {
                 specialNextAllowedTime[i] = 0f;
@@ -261,13 +252,11 @@ public class PlayerAnimation : MonoBehaviour
 
             if (i == playerData.blinkSpecialIndex && playerData.blinkCanRepeat)
             {
-                // blink permitido repetir: disponible de inmediato
                 specialNextAllowedTime[i] = Time.time;
                 if (debugLogs) Debug.Log($"[Idle] Seed: blink {i} allowed immediately");
                 continue;
             }
 
-            // si no hay cooldowns configurados, usar 0 (disponible)
             float min = (playerData.specialIdleCooldownMin != null && i < playerData.specialIdleCooldownMin.Length)
                 ? playerData.specialIdleCooldownMin[i]
                 : 0f;
@@ -277,7 +266,6 @@ public class PlayerAnimation : MonoBehaviour
 
             if (min > max) (min, max) = (max, min);
 
-            // si ambos son cero -> dejar disponible inmediatamente
             if (Mathf.Approximately(min, 0f) && Mathf.Approximately(max, 0f))
             {
                 specialNextAllowedTime[i] = Time.time;
@@ -285,7 +273,6 @@ public class PlayerAnimation : MonoBehaviour
                 continue;
             }
 
-            // seed = un valor aleatorio entre min/max (si min==max -> min)
             float seed = Mathf.Approximately(min, max) ? min : Random.Range(min, max);
             specialNextAllowedTime[i] = Time.time + seed;
 
