@@ -12,7 +12,7 @@ public class PlayerAnimation : MonoBehaviour
     public float idleSpeedThreshold = 0.1f;
 
     [Header("Animator mapping")]
-    [Tooltip("IdleIndex donde empiezan los special idles")]
+    [Tooltip("IdleIndex donde empiezan los special idles (blend tree index base)")]
     public int specialBaseAnimatorIndex = 3;
 
     [Header("Debug")]
@@ -76,7 +76,7 @@ public class PlayerAnimation : MonoBehaviour
             idleCoroutine = null;
         }
 
-        animator.SetFloat(idleIndexHash, 0);
+        animator.SetFloat(idleIndexHash, 0f);
     }
 
     private IEnumerator IdleStateMachine()
@@ -93,7 +93,7 @@ public class PlayerAnimation : MonoBehaviour
             // idle_normal -> transition -> tieso
             if (!inTiesoLoop)
             {
-                animator.SetFloat(idleIndexHash, 0);
+                animator.SetFloat(idleIndexHash, 0f);
 
                 if (timeInIdleNormal < playerData.idleToTransitionDelay)
                 {
@@ -101,13 +101,17 @@ public class PlayerAnimation : MonoBehaviour
                     continue;
                 }
 
-                animator.SetFloat(idleIndexHash, 1);
+                // transition
+                animator.SetFloat(idleIndexHash, 1f);
                 if (debugLogs) Debug.Log("[Idle] idle_transition");
                 yield return WaitForCurrentState();
 
-                animator.SetFloat(idleIndexHash, 2);
+                // tieso pose
+                animator.SetFloat(idleIndexHash, 2f);
                 if (debugLogs) Debug.Log("[Idle] idle_tieso");
                 yield return new WaitForSeconds(playerData.transitionToLoopDelay);
+
+                SeedInitialSpecialCooldowns();
 
                 inTiesoLoop = true;
                 lastSpecialIndex = -1;
@@ -115,7 +119,7 @@ public class PlayerAnimation : MonoBehaviour
             }
 
             // FASE 2: loop de idles especiales
-            animator.SetFloat(idleIndexHash, 2); // asegurar tieso
+            animator.SetFloat(idleIndexHash, 2f);
 
             int chosen = ChooseSpecialIndex();
             if (chosen == -1)
@@ -124,7 +128,6 @@ public class PlayerAnimation : MonoBehaviour
                 continue;
             }
 
-            // evitar repetir special (excepto blink si está permitido)
             bool isBlink = chosen == playerData.blinkSpecialIndex;
             if (chosen == lastSpecialIndex && !(isBlink && playerData.blinkCanRepeat))
             {
@@ -148,7 +151,7 @@ public class PlayerAnimation : MonoBehaviour
             ApplyCooldown(chosen);
             lastSpecialIndex = chosen;
 
-            animator.SetFloat(idleIndexHash, 2); // volver a tieso
+            animator.SetFloat(idleIndexHash, 2f);
             yield return new WaitForSeconds(0.2f);
         }
     }
@@ -157,7 +160,9 @@ public class PlayerAnimation : MonoBehaviour
     {
         yield return null;
         AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(layer);
-        yield return new WaitForSeconds(info.length);
+        //fallback
+        float wait = info.length > 0f ? info.length : 0.5f;
+        yield return new WaitForSeconds(wait);
     }
 
     private int ChooseSpecialIndex()
@@ -170,10 +175,16 @@ public class PlayerAnimation : MonoBehaviour
 
         for (int i = 0; i < n; i++)
         {
-            if (playerData.specialIdleProbabilities[i] <= 0f) continue;
-            if (Time.time < specialNextAllowedTime[i]) continue;
+            float w = playerData.specialIdleProbabilities[i];
+            if (w <= 0f) continue;
 
-            total += playerData.specialIdleProbabilities[i];
+            if (Time.time < specialNextAllowedTime[i])
+            {
+                if (debugLogs) Debug.Log($"[Idle] Special {i} on cooldown until {specialNextAllowedTime[i]:F2} (now {Time.time:F2})");
+                continue;
+            }
+
+            total += w;
             candidates.Add(i);
         }
 
@@ -224,7 +235,63 @@ public class PlayerAnimation : MonoBehaviour
         specialNextAllowedTime[index] = Time.time + Mathf.Max(0.05f, cd);
 
         if (debugLogs)
-            Debug.Log($"[Idle] Cooldown special {index}: {cd:F2}s");
+            Debug.Log($"[Idle] Cooldown special {index}: {cd:F2}s (until {specialNextAllowedTime[index]:F2})");
+    }
+
+    /// <summary>
+    /// Al entrar a tieso/loop inicializamos (seed) los specialNextAllowedTime para que
+    /// no salgan inmediatamente si así lo deseas.
+    /// Comportamiento:
+    /// - Para el special que es "blink" (playerData.blinkSpecialIndex) y si blinkCanRepeat==true,
+    ///   dejamos su nextAllowedTime = Time.time (disponible inmediatamente).
+    /// - Para los demás sets nextAllowedTime = Time.time + Random(min,max)
+    ///   usando los cooldowns configurados en PlayerData.
+    /// </summary>
+    private void SeedInitialSpecialCooldowns()
+    {
+        int n = playerData.specialIdleProbabilities?.Length ?? 0;
+        for (int i = 0; i < n; i++)
+        {
+            // si no hay probabilidad, marcar disponible
+            if (playerData.specialIdleProbabilities[i] <= 0f)
+            {
+                specialNextAllowedTime[i] = 0f;
+                continue;
+            }
+
+            if (i == playerData.blinkSpecialIndex && playerData.blinkCanRepeat)
+            {
+                // blink permitido repetir: disponible de inmediato
+                specialNextAllowedTime[i] = Time.time;
+                if (debugLogs) Debug.Log($"[Idle] Seed: blink {i} allowed immediately");
+                continue;
+            }
+
+            // si no hay cooldowns configurados, usar 0 (disponible)
+            float min = (playerData.specialIdleCooldownMin != null && i < playerData.specialIdleCooldownMin.Length)
+                ? playerData.specialIdleCooldownMin[i]
+                : 0f;
+            float max = (playerData.specialIdleCooldownMax != null && i < playerData.specialIdleCooldownMax.Length)
+                ? playerData.specialIdleCooldownMax[i]
+                : min;
+
+            if (min > max) (min, max) = (max, min);
+
+            // si ambos son cero -> dejar disponible inmediatamente
+            if (Mathf.Approximately(min, 0f) && Mathf.Approximately(max, 0f))
+            {
+                specialNextAllowedTime[i] = Time.time;
+                if (debugLogs) Debug.Log($"[Idle] Seed: special {i} no cooldown config, allowed");
+                continue;
+            }
+
+            // seed = un valor aleatorio entre min/max (si min==max -> min)
+            float seed = Mathf.Approximately(min, max) ? min : Random.Range(min, max);
+            specialNextAllowedTime[i] = Time.time + seed;
+
+            if (debugLogs)
+                Debug.Log($"[Idle] Seed cooldown special {i}: seed {seed:F2}s (available at {specialNextAllowedTime[i]:F2})");
+        }
     }
 
     private void OnDisable()
