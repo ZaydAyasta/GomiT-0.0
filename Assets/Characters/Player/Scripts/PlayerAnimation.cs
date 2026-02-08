@@ -101,12 +101,10 @@ public class PlayerAnimation : MonoBehaviour
                     continue;
                 }
 
-                // transition
                 animator.SetFloat(idleIndexHash, 1f);
                 if (debugLogs) Debug.Log("[Idle] idle_transition");
                 yield return WaitForCurrentState();
 
-                // tieso pose
                 animator.SetFloat(idleIndexHash, 2f);
                 if (debugLogs) Debug.Log("[Idle] idle_tieso");
                 yield return new WaitForSeconds(playerData.transitionToLoopDelay);
@@ -118,49 +116,108 @@ public class PlayerAnimation : MonoBehaviour
                 continue;
             }
 
-            // FASE 2: loop de idles especiales
-            animator.SetFloat(idleIndexHash, 2f);
+            // FASE 2: loop de idles especiales (tieso -> blink/other -> tieso -> ...)
+            animator.SetFloat(idleIndexHash, 2f); // tieso
+
+            // Espera el intervalo entre intentos de special (esto controla ritmo de parpadeos)
+            float interval = Mathf.Max(0.05f, playerData.specialAttemptInterval);
+            yield return new WaitForSeconds(interval);
+
+            // Decide si intentamos un special o hacemos un blink de "relleno"
+            bool trySpecial = Random.value <= Mathf.Clamp01(playerData.specialAttemptChance);
+
+            if (!trySpecial)
+            {
+                // no intentamos special: reproducir blink si está disponible (es el filler por defecto)
+                int blinkIdx = playerData.blinkSpecialIndex;
+                if (IsSpecialAvailable(blinkIdx))
+                {
+                    yield return PlaySpecialAndWait(blinkIdx);
+                    continue;
+                }
+                else
+                {
+                    // blink no disponible: simplemente volvemos a loop tieso y esperamos el siguiente intervalo
+                    if (debugLogs) Debug.Log("[Idle] Blink no disponible, manteniendo tieso hasta siguiente intento");
+                    continue;
+                }
+            }
 
             int chosen = ChooseSpecialIndex();
+
             if (chosen == -1)
             {
-                yield return new WaitForSeconds(0.5f);
-                continue;
+                // Ningún special libre por cooldown o peso -> fallback a blink si puede
+                int blinkIdx = playerData.blinkSpecialIndex;
+                if (IsSpecialAvailable(blinkIdx))
+                {
+                    yield return PlaySpecialAndWait(blinkIdx);
+                    continue;
+                }
+                else
+                {
+                    // Ningún special: esperar un rato y reintentar
+                    if (debugLogs) Debug.Log("[Idle] Ningún special disponible, esperando breve y reintentando");
+                    yield return new WaitForSeconds(0.25f);
+                    continue;
+                }
             }
 
             bool isBlink = chosen == playerData.blinkSpecialIndex;
-            if (chosen == lastSpecialIndex && !(isBlink && playerData.blinkCanRepeat))
+
+            // Si el elegido es el mismo que el último y la regla exige distinto para non-blink, evitarlo
+            bool requireDifferent = playerData.requireDifferentNonBlink; // si este flag no existe, debería añadirse a PlayerData; en tu asset aparece activado
+            if (chosen == lastSpecialIndex && !(isBlink && playerData.blinkCanRepeat) && requireDifferent)
             {
                 int alt = ChooseAlternativeSpecial(chosen);
                 if (alt == -1)
                 {
-                    yield return new WaitForSeconds(0.3f);
-                    continue;
+                    // No hay alternative: en este caso, preferimos hacer blink (si está disponible)
+                    int blinkIdx = playerData.blinkSpecialIndex;
+                    if (IsSpecialAvailable(blinkIdx) || playerData.blinkCanRepeat)
+                    {
+                        chosen = blinkIdx;
+                    }
+                    else
+                    {
+                        // Blink no disponible tampoco: breve espera y reintento (mantener tieso)
+                        if (debugLogs) Debug.Log("[Idle] Solo quedaba el mismo special y blink no disponible -> esperar y reintentar");
+                        yield return new WaitForSeconds(0.25f);
+                        continue;
+                    }
                 }
-                chosen = alt;
+                else
+                {
+                    chosen = alt;
+                }
             }
 
-            int animatorIndex = specialBaseAnimatorIndex + chosen;
-            animator.SetFloat(idleIndexHash, animatorIndex);
-
-            if (debugLogs)
-                Debug.Log($"[Idle] Special {chosen} -> AnimatorIndex {animatorIndex}");
-
-            yield return WaitForCurrentState();
-
-            ApplyCooldown(chosen);
-            lastSpecialIndex = chosen;
-
-            animator.SetFloat(idleIndexHash, 2f);
-            yield return new WaitForSeconds(0.2f);
+            yield return PlaySpecialAndWait(chosen);
         }
+    }
+
+    private IEnumerator PlaySpecialAndWait(int chosen)
+    {
+        int animatorIndex = specialBaseAnimatorIndex + chosen;
+        animator.SetFloat(idleIndexHash, animatorIndex);
+
+        if (debugLogs)
+            Debug.Log($"[Idle] Special {chosen} -> AnimatorIndex {animatorIndex}");
+
+        yield return WaitForCurrentState();
+
+        ApplyCooldown(chosen);
+        lastSpecialIndex = chosen;
+
+        animator.SetFloat(idleIndexHash, 2f);
+        yield return new WaitForSeconds(0.2f);
     }
 
     private IEnumerator WaitForCurrentState(int layer = 0)
     {
         yield return null;
         AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(layer);
-        //fallback
+        // fallback
         float wait = info.length > 0f ? info.length : 0.5f;
         yield return new WaitForSeconds(wait);
     }
@@ -279,6 +336,16 @@ public class PlayerAnimation : MonoBehaviour
             if (debugLogs)
                 Debug.Log($"[Idle] Seed cooldown special {i}: seed {seed:F2}s (available at {specialNextAllowedTime[i]:F2})");
         }
+    }
+
+    private bool IsSpecialAvailable(int idx)
+    {
+        if (idx < 0) return false;
+        if (playerData.specialIdleProbabilities == null) return false;
+        if (idx >= playerData.specialIdleProbabilities.Length) return false;
+        if (playerData.specialIdleProbabilities[idx] <= 0f) return false;
+        if (Time.time < specialNextAllowedTime[idx]) return false;
+        return true;
     }
 
     private void OnDisable()

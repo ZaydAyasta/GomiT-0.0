@@ -20,17 +20,20 @@ MonoBehaviour:
   idleToTransitionDelay: 10
   transitionToLoopDelay: 4
   specialIdleProbabilities:
-  - 0.8
-  - 0.01
-  - 0.05
+  - 1.9
+  - 0.1
+  - 0.2
   specialIdleCooldownMin:
-  - 1
-  - 17
+  - 0.9
+  - 20
   - 30
   specialIdleCooldownMax:
-  - 1.7
-  - 22
+  - 1.8
+  - 28
   - 38
-  groundCheckRadius: 0.1
+  specialAttemptInterval: 1.2
+  specialAttemptChance: 0.35
+  requireDifferentNonBlink: 1
   blinkSpecialIndex: 0
   blinkCanRepeat: 1
+  groundCheckRadius: 0.1

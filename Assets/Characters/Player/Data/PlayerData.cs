@@ -18,19 +18,33 @@ public class PlayerData : ScriptableObject
     public float transitionToLoopDelay = 5f;
 
     [Header("Idle Loop (specials)")]
-    [Tooltip("Probabilidad relativa por idle especial. El primer elemento corresponde a 'idle_blink' si así lo mapeas.")]
+    [Tooltip("Probabilidad relativa por idle especial. El índice debe coincidir con el orden del BlendTree.")]
     public float[] specialIdleProbabilities = new float[] { 0.8f, 0.1f };
 
-    [Tooltip("Cooldown mínimo por special idle (same indexing)")]
+    [Tooltip("Cooldown mínimo por special idle (mismo index)")]
     public float[] specialIdleCooldownMin = new float[] { 2f, 4f };
 
-    [Tooltip("Cooldown máximo por special idle (same indexing)")]
+    [Tooltip("Cooldown máximo por special idle (mismo index)")]
     public float[] specialIdleCooldownMax = new float[] { 2.5f, 6f };
+
+    [Header("Idle Loop – Attempt Logic")]
+    [Tooltip("Cada cuántos segundos se intenta sacar un special o blink")]
+    public float specialAttemptInterval = 1.2f;
+
+    [Tooltip("Probabilidad de que un intento busque un special (si falla, se usa blink como filler)")]
+    [Range(0f, 1f)]
+    public float specialAttemptChance = 0.35f;
+
+    [Tooltip("Si está activo, un idle especial (no blink) NO puede repetirse dos veces seguidas")]
+    public bool requireDifferentNonBlink = true;
+
+    [Header("Special tuning")]
+    [Tooltip("Índice dentro de specialIdleProbabilities que corresponde al blink")]
+    public int blinkSpecialIndex = 0;
+
+    [Tooltip("Permite que el blink se repita aunque haya sido el último special")]
+    public bool blinkCanRepeat = true;
 
     [Header("Other")]
     public float groundCheckRadius = 0.1f;
-
-    [Header("Special tuning")]
-    public int blinkSpecialIndex = 0;
-    public bool blinkCanRepeat = true;
 }
