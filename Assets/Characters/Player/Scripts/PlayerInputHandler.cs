@@ -6,24 +6,20 @@ public class PlayerInputHandler : MonoBehaviour
     public Vector2 Move { get; private set; }
     public bool JumpPressed { get; private set; }
     public bool RunHeld { get; private set; }
+    public bool CrouchHeld { get; private set; }
 
-    public void OnMove(InputAction.CallbackContext ctx)
-    {
-        Move = ctx.ReadValue<Vector2>();
-    }
+    public void OnMove(InputAction.CallbackContext ctx) => Move = ctx.ReadValue<Vector2>();
 
     public void OnJump(InputAction.CallbackContext ctx)
     {
-        if (ctx.performed)
-        {
-            //Debug.Log("JUMP");
-            JumpPressed = true;
-        }
+        if (ctx.performed) JumpPressed = true;
     }
 
-    public void OnRun(InputAction.CallbackContext ctx)
+    public void OnRun(InputAction.CallbackContext ctx) => RunHeld = ctx.ReadValueAsButton();
+
+    public void OnCrouch(InputAction.CallbackContext ctx)
     {
-        RunHeld = ctx.ReadValueAsButton();
+        CrouchHeld = ctx.ReadValueAsButton();
     }
 
     private void LateUpdate()
