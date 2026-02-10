@@ -8,18 +8,24 @@ public class PlayerInputHandler : MonoBehaviour
     public bool RunHeld { get; private set; }
     public bool CrouchHeld { get; private set; }
 
-    public void OnMove(InputAction.CallbackContext ctx) => Move = ctx.ReadValue<Vector2>();
+    public void OnMove(InputAction.CallbackContext ctx)
+        => Move = ctx.ReadValue<Vector2>();
 
     public void OnJump(InputAction.CallbackContext ctx)
     {
-        if (ctx.performed) JumpPressed = true;
+        if (ctx.performed)
+            JumpPressed = true;
     }
 
-    public void OnRun(InputAction.CallbackContext ctx) => RunHeld = ctx.ReadValueAsButton();
+    public void OnRun(InputAction.CallbackContext ctx)
+        => RunHeld = ctx.ReadValueAsButton();
 
     public void OnCrouch(InputAction.CallbackContext ctx)
     {
-        CrouchHeld = ctx.ReadValueAsButton();
+        if (ctx.performed)
+            CrouchHeld = true;
+        else if (ctx.canceled)
+            CrouchHeld = false;
     }
 
     private void LateUpdate()

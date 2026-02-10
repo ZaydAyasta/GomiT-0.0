@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
@@ -13,6 +14,8 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
     private SpriteRenderer spriteRenderer;
+
+    private readonly int isCrouchingHash = Animator.StringToHash("isCrouching");
 
     [Header("Wall Check")]
     public Transform wallCheck;
@@ -50,6 +53,9 @@ public class PlayerController : MonoBehaviour
         bool isInAir = !isGrounded || Mathf.Abs(yVel) > 0.1f;
         animator.SetBool("isInAir", isInAir);
 
+        bool isCrouching = input.CrouchHeld && isGrounded;
+        animator.SetBool(isCrouchingHash, isCrouching);
+
         GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
 
         if (spriteRenderer != null)
@@ -66,8 +72,12 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        float targetSpeed = input.Move.x *
-            (input.RunHeld ? data.runSpeed : data.walkSpeed);
+        float baseSpeed = input.Move.x * (input.RunHeld ? data.runSpeed : data.walkSpeed);
+
+        bool isCrouching = input.CrouchHeld && isGrounded;
+        float crouchMultiplier = isCrouching ? 0.4f : 1f;
+
+        float targetSpeed = baseSpeed * crouchMultiplier;
 
         if (!isGrounded && isTouchingWall && Mathf.Abs(targetSpeed) > 0.01f)
         {
@@ -78,6 +88,7 @@ public class PlayerController : MonoBehaviour
             rb.linearVelocity = new Vector2(targetSpeed, rb.linearVelocity.y);
         }
     }
+
 
     private void Jump()
     {
