@@ -796,7 +796,7 @@
     "m_PerRendererData": false,
     "m_customAttributes": [],
     "m_Value": {
-        "m_SerializedTexture": "{\"texture\":{\"fileID\":2800000,\"guid\":\"09a036cbf0ff2c44bb3e9429762e54e8\",\"type\":3}}",
+        "m_SerializedTexture": "{\"texture\":{\"fileID\":10912,\"guid\":\"0000000000000000f000000000000000\",\"type\":0}}",
         "m_Guid": ""
     },
     "isMainTexture": false,
@@ -1713,10 +1713,10 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -84.99996185302735,
-            "y": -170.99998474121095,
-            "width": 125.99996185302735,
-            "height": 117.99996948242188
+            "x": -84.00000762939453,
+            "y": -171.00003051757813,
+            "width": 207.99996948242188,
+            "height": 302.0000305175781
         }
     },
     "m_Slots": [
@@ -1809,8 +1809,8 @@
     "m_CustomSlotLabel": "",
     "m_DismissedVersion": 0,
     "m_Precision": 0,
-    "overrideHLSLDeclaration": false,
-    "hlslDeclarationOverride": 0,
+    "overrideHLSLDeclaration": true,
+    "hlslDeclarationOverride": 2,
     "m_Hidden": false,
     "m_PerRendererData": false,
     "m_customAttributes": [],
@@ -3161,8 +3161,8 @@
     "m_ObjectId": "97b144268bb74ce6bd94083d81da77af",
     "m_Title": "OffsetX",
     "m_Position": {
-        "x": -108.0,
-        "y": -461.0
+        "x": -107.99993896484375,
+        "y": -461.00006103515627
     }
 }
 
@@ -3341,7 +3341,7 @@
     "m_Title": "UV_Right",
     "m_Position": {
         "x": 821.0,
-        "y": -931.0
+        "y": -931.0001220703125
     }
 }
 
@@ -3880,10 +3880,10 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -670.9998779296875,
-            "y": -373.9999694824219,
-            "width": 143.99993896484376,
-            "height": 105.99996948242188
+            "x": -704.0000610351563,
+            "y": -373.0000305175781,
+            "width": 173.00006103515626,
+            "height": 106.0
         }
     },
     "m_Slots": [
@@ -3900,7 +3900,7 @@
         "m_SerializableColors": []
     },
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"fileID\":2800000,\"guid\":\"09a036cbf0ff2c44bb3e9429762e54e8\",\"type\":3}}",
+        "m_SerializedTexture": "{\"texture\":{\"fileID\":10912,\"guid\":\"0000000000000000f000000000000000\",\"type\":0}}",
         "m_Guid": ""
     }
 }
@@ -4049,8 +4049,8 @@
     "m_ObjectId": "d25e101996f14d7db3534413465c5963",
     "m_Title": "OffsetY",
     "m_Position": {
-        "x": -110.0,
-        "y": -230.0
+        "x": -109.0,
+        "y": -230.00006103515626
     }
 }
 
@@ -4115,8 +4115,8 @@
     "m_ObjectId": "d67badf783d94fc38fd453875bda6cc3",
     "m_Title": "UV_Up",
     "m_Position": {
-        "x": 815.0,
-        "y": -319.0
+        "x": 815.0001220703125,
+        "y": -319.0000305175781
     }
 }
 
