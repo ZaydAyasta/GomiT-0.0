@@ -902,7 +902,7 @@ MonoBehaviour:
   standingGrip: {fileID: 861030768}
   crouchGrip: {fileID: 1585995769}
   outlineColor: {r: 1, g: 0.64940256, b: 0.23113209, a: 1}
-  outlineThickness: 0.000005
+  outlineThickness: 0.00005
 --- !u!1 &2055992171
 GameObject:
   m_ObjectHideFlags: 0
@@ -1312,7 +1312,7 @@ MonoBehaviour:
     m_Bits: 4294967295
   overrideValues: 0
   overrideColor: {r: 1, g: 0, b: 0, a: 1}
-  overrideThickness: 0.000005
+  overrideThickness: 0.0005
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
