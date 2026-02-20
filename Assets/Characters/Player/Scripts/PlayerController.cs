@@ -30,6 +30,13 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private bool isTouchingWall;
 
+    [Header("Grapping")]
+    public GrappableHighlighter highlighter;
+    private enum HoldState { Normal, Holding }
+    private HoldState holdState = HoldState.Normal;
+    private GrappableObject currentAnchor;
+    private Vector2 holdOffset;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -56,15 +63,41 @@ public class PlayerController : MonoBehaviour
         bool isCrouching = input.CrouchHeld && isGrounded;
         animator.SetBool(isCrouchingHash, isCrouching);
 
-        GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
+        if (input.GrabPressed)
+        {
+            TryEnterHolding();
+        }
 
-        if (spriteRenderer != null)
+        if (holdState == HoldState.Holding && !input.GrabHeld)
+        {
+            ExitHolding();
+        }
+
+        if (holdState == HoldState.Holding)
+        {
+            GetComponent<PlayerAnimation>()?.SetSpeed(0f, false);
+            animator.SetBool("isHolding", true);
+
+            if (currentAnchor != null)
+            {
+                Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
+                Vector2 targetPos = gripPos + holdOffset;
+                transform.position = targetPos;
+            }
+        }
+        else
+        {
+            GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
+            animator.SetBool("isHolding", false);
+        }
+
+        if (spriteRenderer != null && holdState != HoldState.Holding)
         {
             if (horizontalInput > 0.01f) spriteRenderer.flipX = false;
             else if (horizontalInput < -0.01f) spriteRenderer.flipX = true;
         }
 
-        if (input.JumpPressed && isGrounded)
+        if (input.JumpPressed && isGrounded && holdState != HoldState.Holding)
         {
             Jump();
         }
@@ -72,6 +105,13 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+
+        if (holdState == HoldState.Holding)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            return;
+        }
+
         float baseSpeed = input.Move.x * (input.RunHeld ? data.runSpeed : data.walkSpeed);
 
         bool isCrouching = input.CrouchHeld && isGrounded;
@@ -87,6 +127,50 @@ public class PlayerController : MonoBehaviour
         {
             rb.linearVelocity = new Vector2(targetSpeed, rb.linearVelocity.y);
         }
+    }
+
+    private void TryEnterHolding()
+    {
+        if (highlighter == null)
+        {
+            Debug.LogWarning("[PlayerController] No highlighter asignado.");
+            return;
+        }
+
+        GrappableObject g = highlighter.GetHighlighted();
+        if (g == null)
+        {
+            Debug.Log("[PlayerController] No hay nada holdeable cerca.");
+            return;
+        }
+
+        EnterHolding(g);
+    }
+
+    private void EnterHolding(GrappableObject anchor)
+    {
+        currentAnchor = anchor;
+        holdState = HoldState.Holding;
+
+        bool isCrouching = input.CrouchHeld && isGrounded;
+        Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
+        holdOffset = (Vector2)transform.position - gripPos;
+
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        rb.linearVelocity = Vector2.zero;
+        rb.angularVelocity = 0f;
+
+        animator.SetBool("isHolding", true);
+    }
+
+    private void ExitHolding()
+    {
+        rb.bodyType = RigidbodyType2D.Dynamic;
+
+        animator.SetBool("isHolding", false);
+
+        currentAnchor = null;
+        holdState = HoldState.Normal;
     }
 
 
