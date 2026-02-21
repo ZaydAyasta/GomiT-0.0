@@ -30,12 +30,20 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private bool isTouchingWall;
 
-    [Header("Grapping")]
+    [Header("Grapping / Holding")]
     public GrappableHighlighter highlighter;
     private enum HoldState { Normal, Holding }
     private HoldState holdState = HoldState.Normal;
     private GrappableObject currentAnchor;
     private Vector2 holdOffset;
+
+    [Header("Holding Movement Settings")]
+    [Tooltip("M�xima distancia horizontal desde anchor")]
+    public float maxHoldDistance = 1.5f;
+    [Tooltip("Velocidad durante el anchor")]
+    public float holdMoveSpeed = 2.0f;
+    [Tooltip("Si true, posici�n vertical bloqueada respecto al grip.")]
+    public bool holdVerticalLock = true;
 
     private void Awake()
     {
@@ -60,18 +68,19 @@ public class PlayerController : MonoBehaviour
         bool isInAir = !isGrounded || Mathf.Abs(yVel) > 0.1f;
         animator.SetBool("isInAir", isInAir);
 
-        bool isCrouching = input.CrouchHeld && isGrounded;
+        bool isCrouching;
+        if (holdState == HoldState.Holding)
+            isCrouching = input.CrouchHeld;
+        else
+            isCrouching = input.CrouchHeld && isGrounded;
+
         animator.SetBool(isCrouchingHash, isCrouching);
 
         if (input.GrabPressed)
-        {
             TryEnterHolding();
-        }
 
         if (holdState == HoldState.Holding && !input.GrabHeld)
-        {
             ExitHolding();
-        }
 
         if (holdState == HoldState.Holding)
         {
@@ -80,32 +89,43 @@ public class PlayerController : MonoBehaviour
 
             if (currentAnchor != null)
             {
+                float dx = horizontalInput * holdMoveSpeed * Time.deltaTime;
+                holdOffset.x += dx;
+                holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
+
                 Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
+
                 Vector2 targetPos = gripPos + holdOffset;
+                if (holdVerticalLock)
+                    targetPos.y = gripPos.y + holdOffset.y;
+
                 transform.position = targetPos;
+
+                if (spriteRenderer != null)
+                {
+                    if (holdOffset.x > 0.01f) spriteRenderer.flipX = false;
+                    else if (holdOffset.x < -0.01f) spriteRenderer.flipX = true;
+                }
             }
-        }
-        else
-        {
-            GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
-            animator.SetBool("isHolding", false);
+
+            return;
         }
 
-        if (spriteRenderer != null && holdState != HoldState.Holding)
+        GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
+        animator.SetBool("isHolding", false);
+
+        if (spriteRenderer != null)
         {
             if (horizontalInput > 0.01f) spriteRenderer.flipX = false;
             else if (horizontalInput < -0.01f) spriteRenderer.flipX = true;
         }
 
-        if (input.JumpPressed && isGrounded && holdState != HoldState.Holding)
-        {
+        if (input.JumpPressed && isGrounded)
             Jump();
-        }
     }
 
     private void FixedUpdate()
     {
-
         if (holdState == HoldState.Holding)
         {
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
@@ -152,9 +172,13 @@ public class PlayerController : MonoBehaviour
         currentAnchor = anchor;
         holdState = HoldState.Holding;
 
-        bool isCrouching = input.CrouchHeld && isGrounded;
-        Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
+
+        bool isCrouchingOnEnter = input.CrouchHeld;
+
+        Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
         holdOffset = (Vector2)transform.position - gripPos;
+
+        holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
 
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.linearVelocity = Vector2.zero;
@@ -172,7 +196,6 @@ public class PlayerController : MonoBehaviour
         currentAnchor = null;
         holdState = HoldState.Normal;
     }
-
 
     private void Jump()
     {
@@ -193,6 +216,12 @@ public class PlayerController : MonoBehaviour
 
     private void CheckWall()
     {
+        if (wallCheck == null)
+        {
+            isTouchingWall = false;
+            return;
+        }
+
         isTouchingWall = Physics2D.OverlapBox(
             wallCheck.position,
             wallCheckSize,
@@ -214,7 +243,6 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-
     private void OnDrawGizmosSelected()
     {
         if (groundCheck != null)
@@ -226,7 +254,14 @@ public class PlayerController : MonoBehaviour
         if (wallCheck != null)
         {
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireCube(wallCheck.position, wallCheckSize);
+            if (wallCheck != null) Gizmos.DrawWireCube(wallCheck.position, wallCheckSize);
+        }
+
+        if (currentAnchor != null)
+        {
+            Gizmos.color = Color.yellow;
+            Vector3 gpos = currentAnchor.transform.position;
+            Gizmos.DrawWireSphere(gpos, maxHoldDistance);
         }
     }
 }

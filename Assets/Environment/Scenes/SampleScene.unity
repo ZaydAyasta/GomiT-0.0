@@ -1063,6 +1063,10 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 256
+  highlighter: {fileID: 2055992181}
+  maxHoldDistance: 2.5
+  holdMoveSpeed: 2
+  holdVerticalLock: 1
 --- !u!50 &2055992177
 Rigidbody2D:
   serializedVersion: 5
