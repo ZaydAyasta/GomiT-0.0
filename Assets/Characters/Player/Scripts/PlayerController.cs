@@ -38,12 +38,26 @@ public class PlayerController : MonoBehaviour
     private Vector2 holdOffset;
 
     [Header("Holding Movement Settings")]
-    [Tooltip("M�xima distancia horizontal desde anchor")]
+    [Tooltip("Máxima distancia horizontal desde anchor")]
     public float maxHoldDistance = 1.5f;
-    [Tooltip("Velocidad durante el anchor")]
+    [Tooltip("Velocidad horizontal durante el anchor")]
     public float holdMoveSpeed = 2.0f;
-    [Tooltip("Si true, posici�n vertical bloqueada respecto al grip.")]
-    public bool holdVerticalLock = true;
+    [Tooltip("Si true, la posición vertical se bloquea respecto al grip (no aplica gravedad)")]
+    public bool holdVerticalLock = false;
+
+    [Header("Holding Vertical (Y) Settings")]
+    [Tooltip("Máxima distancia hacia arriba desde el anchor")]
+    public float maxHoldUpDistance = 1.0f;
+    [Tooltip("Máxima distancia hacia abajo desde el anchor")]
+    public float maxHoldDownDistance = 2.0f;
+    [Tooltip("Gravedad aplicada mientras está en hold (sensación de peso)")]
+    public float holdGravity = 9.8f;
+    [Tooltip("Altura mínima sobre la colisión detectada para evitar traspasar el suelo")]
+    public float groundClearance = 0.05f;
+    [Tooltip("Máxima distancia de raycast hacia abajo para detectar suelo y corregir posición")]
+    public float groundRaycastDistance = 5f;
+
+    private float holdVerticalVelocity = 0f;
 
     private void Awake()
     {
@@ -93,11 +107,30 @@ public class PlayerController : MonoBehaviour
                 holdOffset.x += dx;
                 holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
 
-                Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
+                if (!holdVerticalLock)
+                {
+                    holdVerticalVelocity -= holdGravity * Time.deltaTime;
+                    holdOffset.y += holdVerticalVelocity * Time.deltaTime;
 
+                    holdOffset.y = Mathf.Clamp(holdOffset.y, -maxHoldDownDistance, maxHoldUpDistance);
+                }
+
+                Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
                 Vector2 targetPos = gripPos + holdOffset;
-                if (holdVerticalLock)
-                    targetPos.y = gripPos.y + holdOffset.y;
+
+                Vector2 rayOrigin = targetPos + Vector2.up * 0.1f;
+                RaycastHit2D hit = Physics2D.Raycast(rayOrigin, Vector2.down, groundRaycastDistance, groundLayer);
+
+                if (hit.collider != null)
+                {
+                    float allowedY = hit.point.y + groundClearance;
+                    if (targetPos.y < allowedY)
+                    {
+                        targetPos.y = allowedY;
+                        holdOffset.y = targetPos.y - gripPos.y;
+                        holdVerticalVelocity = 0f;
+                    }
+                }
 
                 transform.position = targetPos;
 
@@ -172,13 +205,14 @@ public class PlayerController : MonoBehaviour
         currentAnchor = anchor;
         holdState = HoldState.Holding;
 
-
         bool isCrouchingOnEnter = input.CrouchHeld;
-
         Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
         holdOffset = (Vector2)transform.position - gripPos;
 
         holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
+        holdOffset.y = Mathf.Clamp(holdOffset.y, -maxHoldDownDistance, maxHoldUpDistance);
+
+        holdVerticalVelocity = 0f;
 
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.linearVelocity = Vector2.zero;
@@ -262,6 +296,10 @@ public class PlayerController : MonoBehaviour
             Gizmos.color = Color.yellow;
             Vector3 gpos = currentAnchor.transform.position;
             Gizmos.DrawWireSphere(gpos, maxHoldDistance);
+
+            Gizmos.color = Color.cyan;
+            Vector3 gripPos = currentAnchor.GetGripPosition(false);
+            Gizmos.DrawWireSphere(gripPos + (Vector3)holdOffset, 0.05f);
         }
     }
 }
