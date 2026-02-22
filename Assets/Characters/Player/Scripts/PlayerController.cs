@@ -40,24 +40,17 @@ public class PlayerController : MonoBehaviour
     [Header("Holding Movement Settings")]
     [Tooltip("Máxima distancia horizontal desde anchor")]
     public float maxHoldDistance = 1.5f;
-    [Tooltip("Velocidad horizontal durante el anchor")]
+    [Tooltip("Velocidad durante el anchor (m/s)")]
     public float holdMoveSpeed = 2.0f;
-    [Tooltip("Si true, la posición vertical se bloquea respecto al grip (no aplica gravedad)")]
-    public bool holdVerticalLock = false;
+    [Tooltip("Si true, posición vertical bloqueada respecto al grip.")]
+    public bool holdVerticalLock = true;
 
-    [Header("Holding Vertical (Y) Settings")]
-    [Tooltip("Máxima distancia hacia arriba desde el anchor")]
-    public float maxHoldUpDistance = 1.0f;
-    [Tooltip("Máxima distancia hacia abajo desde el anchor")]
-    public float maxHoldDownDistance = 2.0f;
-    [Tooltip("Gravedad aplicada mientras está en hold (sensación de peso)")]
-    public float holdGravity = 9.8f;
-    [Tooltip("Altura mínima sobre la colisión detectada para evitar traspasar el suelo")]
-    public float groundClearance = 0.05f;
-    [Tooltip("Máxima distancia de raycast hacia abajo para detectar suelo y corregir posición")]
-    public float groundRaycastDistance = 5f;
+    [Tooltip("Si true, usa física durante el hold (gravedad activa). Si false, cuerpo kinematic y se posiciona manualmente.")]
+    public bool holdUsePhysics = true;
 
-    private float holdVerticalVelocity = 0f;
+    private RigidbodyType2D prevBodyType;
+    private float prevGravityScale;
+    private bool isCrouchingOnEnter = false;
 
     private void Awake()
     {
@@ -101,44 +94,14 @@ public class PlayerController : MonoBehaviour
             GetComponent<PlayerAnimation>()?.SetSpeed(0f, false);
             animator.SetBool("isHolding", true);
 
-            if (currentAnchor != null)
+            float dx = horizontalInput * holdMoveSpeed * Time.deltaTime;
+            holdOffset.x += dx;
+            holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
+
+            if (spriteRenderer != null)
             {
-                float dx = horizontalInput * holdMoveSpeed * Time.deltaTime;
-                holdOffset.x += dx;
-                holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
-
-                if (!holdVerticalLock)
-                {
-                    holdVerticalVelocity -= holdGravity * Time.deltaTime;
-                    holdOffset.y += holdVerticalVelocity * Time.deltaTime;
-
-                    holdOffset.y = Mathf.Clamp(holdOffset.y, -maxHoldDownDistance, maxHoldUpDistance);
-                }
-
-                Vector2 gripPos = currentAnchor.GetGripPosition(isCrouching);
-                Vector2 targetPos = gripPos + holdOffset;
-
-                Vector2 rayOrigin = targetPos + Vector2.up * 0.1f;
-                RaycastHit2D hit = Physics2D.Raycast(rayOrigin, Vector2.down, groundRaycastDistance, groundLayer);
-
-                if (hit.collider != null)
-                {
-                    float allowedY = hit.point.y + groundClearance;
-                    if (targetPos.y < allowedY)
-                    {
-                        targetPos.y = allowedY;
-                        holdOffset.y = targetPos.y - gripPos.y;
-                        holdVerticalVelocity = 0f;
-                    }
-                }
-
-                transform.position = targetPos;
-
-                if (spriteRenderer != null)
-                {
-                    if (holdOffset.x > 0.01f) spriteRenderer.flipX = false;
-                    else if (holdOffset.x < -0.01f) spriteRenderer.flipX = true;
-                }
+                if (holdOffset.x > 0.01f) spriteRenderer.flipX = false;
+                else if (holdOffset.x < -0.01f) spriteRenderer.flipX = true;
             }
 
             return;
@@ -161,14 +124,31 @@ public class PlayerController : MonoBehaviour
     {
         if (holdState == HoldState.Holding)
         {
+            // MODO A: usar física durante hold (recomendado para mantener gravedad)
+            if (holdUsePhysics && currentAnchor != null)
+            {
+                Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
+
+                float targetX = gripPos.x + holdOffset.x;
+                float deltaX = targetX - rb.position.x;
+
+                float desiredVelX = Mathf.Clamp(deltaX / Time.fixedDeltaTime, -holdMoveSpeed, holdMoveSpeed);
+
+                rb.linearVelocity = new Vector2(desiredVelX, rb.linearVelocity.y);
+
+                return;
+            }
+
+            // MODO B: comportamiento legacy (kinematic + posicionamiento directo)
+            // Esto mantiene la lógica original: congelas Y y colocas transform directamente.
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
 
         float baseSpeed = input.Move.x * (input.RunHeld ? data.runSpeed : data.walkSpeed);
 
-        bool isCrouching = input.CrouchHeld && isGrounded;
-        float crouchMultiplier = isCrouching ? 0.4f : 1f;
+        bool isCrouchingFixed = input.CrouchHeld && isGrounded;
+        float crouchMultiplier = isCrouchingFixed ? 0.4f : 1f;
 
         float targetSpeed = baseSpeed * crouchMultiplier;
 
@@ -205,25 +185,43 @@ public class PlayerController : MonoBehaviour
         currentAnchor = anchor;
         holdState = HoldState.Holding;
 
-        bool isCrouchingOnEnter = input.CrouchHeld;
+        isCrouchingOnEnter = input.CrouchHeld;
+
         Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
         holdOffset = (Vector2)transform.position - gripPos;
-
         holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
-        holdOffset.y = Mathf.Clamp(holdOffset.y, -maxHoldDownDistance, maxHoldUpDistance);
 
-        holdVerticalVelocity = 0f;
+        prevBodyType = rb.bodyType;
+        prevGravityScale = rb.gravityScale;
 
-        rb.bodyType = RigidbodyType2D.Kinematic;
-        rb.linearVelocity = Vector2.zero;
-        rb.angularVelocity = 0f;
+        if (holdUsePhysics)
+        {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.angularVelocity = 0f;
+        }
+        else
+        {
+            rb.bodyType = RigidbodyType2D.Kinematic;
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+
+            if (currentAnchor != null)
+            {
+                Vector2 grip = currentAnchor.GetGripPosition(isCrouchingOnEnter);
+                Vector2 targetPos = grip + holdOffset;
+                if (holdVerticalLock)
+                    targetPos.y = grip.y + holdOffset.y;
+                transform.position = targetPos;
+            }
+        }
 
         animator.SetBool("isHolding", true);
     }
 
     private void ExitHolding()
     {
-        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.bodyType = prevBodyType;
+        rb.gravityScale = prevGravityScale;
 
         animator.SetBool("isHolding", false);
 
@@ -296,10 +294,6 @@ public class PlayerController : MonoBehaviour
             Gizmos.color = Color.yellow;
             Vector3 gpos = currentAnchor.transform.position;
             Gizmos.DrawWireSphere(gpos, maxHoldDistance);
-
-            Gizmos.color = Color.cyan;
-            Vector3 gripPos = currentAnchor.GetGripPosition(false);
-            Gizmos.DrawWireSphere(gripPos + (Vector3)holdOffset, 0.05f);
         }
     }
 }
