@@ -104,6 +104,12 @@ public class PlayerController : MonoBehaviour
                 else if (holdOffset.x < -0.01f) spriteRenderer.flipX = true;
             }
 
+            // Permitir saltar desde hold: si se pulsa, salir del hold y aplicar salto.
+            if (input.JumpPressed)
+            {
+                JumpFromHold();
+            }
+
             return;
         }
 
@@ -116,6 +122,7 @@ public class PlayerController : MonoBehaviour
             else if (horizontalInput < -0.01f) spriteRenderer.flipX = true;
         }
 
+        // Salto normal solo si en suelo
         if (input.JumpPressed && isGrounded)
             Jump();
     }
@@ -229,10 +236,31 @@ public class PlayerController : MonoBehaviour
         holdState = HoldState.Normal;
     }
 
+    // Salto normal
     private void Jump()
     {
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
         rb.AddForce(Vector2.up * data.jumpForce, ForceMode2D.Impulse);
+        animator.SetTrigger("Jump");
+    }
+
+    // Salto cuando vienes de Hold: salir del hold y ejecutar salto limpio.
+    private void JumpFromHold()
+    {
+        // Salimos primero del modo hold (restaurando bodyType y gravedad)
+        ExitHolding();
+
+        // Asegurarnos de que el rigidbody está en modo dinámico para que AddForce funcione
+        if (rb.bodyType != RigidbodyType2D.Dynamic)
+            rb.bodyType = RigidbodyType2D.Dynamic;
+
+        // Resetear vertical para aplicar impulso consistente
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+
+        // Aplicar impulso
+        rb.AddForce(Vector2.up * data.jumpForce, ForceMode2D.Impulse);
+
+        // Trigger de animación de salto
         animator.SetTrigger("Jump");
     }
 
