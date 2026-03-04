@@ -322,6 +322,9 @@ public class PlayerController : MonoBehaviour
             Gizmos.color = Color.yellow;
             Vector3 gpos = currentAnchor.transform.position;
             Gizmos.DrawWireSphere(gpos, maxHoldDistance);
+            
+            //no se si esto funcionará xd
+            //gomiArmRenderer.SetTargetTransform(currentAnchor.transform);
         }
     }
 }
