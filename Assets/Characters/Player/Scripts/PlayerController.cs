@@ -52,6 +52,9 @@ public class PlayerController : MonoBehaviour
     private float prevGravityScale;
     private bool isCrouchingOnEnter = false;
 
+    [Header("Arm Renderer")]
+    public GomiArmRenderer armRenderer;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -194,6 +197,16 @@ public class PlayerController : MonoBehaviour
 
         isCrouchingOnEnter = input.CrouchHeld;
 
+        if (armRenderer != null)
+        {
+            Transform grip = isCrouchingOnEnter
+                ? anchor.crouchGrip
+                : anchor.standingGrip;
+
+            Debug.Log($"[PlayerController] EnterHolding -> arm target: {(grip != null ? grip.name : "null")}, crouching={isCrouchingOnEnter}");
+            armRenderer.SetTargetTransform(grip);
+        }
+
         Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
         holdOffset = (Vector2)transform.position - gripPos;
         holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
@@ -234,6 +247,15 @@ public class PlayerController : MonoBehaviour
 
         currentAnchor = null;
         holdState = HoldState.Normal;
+
+        if (armRenderer != null)
+        {
+            // opción A: quitar target para que deje de usar transform
+            armRenderer.SetTargetTransform(null);
+
+            // opción B (si quieres que el brazo se recoja hacia el hombro):
+            // armRenderer.SetTargetPosition(armRenderer.shoulder != null ? (Vector2)armRenderer.shoulder.position : (Vector2)transform.position);
+        }
     }
 
     // Salto normal

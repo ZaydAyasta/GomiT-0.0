@@ -1,16 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// GomiArmRenderer: dibuja un "brazo elástico" formado por 3 partes:
-///  - capStart  (sprite de la unión en el hombro)
-///  - capMid    (sprite tiled / stretchable para la parte central)
-///  - capEnd    (sprite de la mano / extremo)
-///
-/// Requisitos:
-///  - capMid.sprite debe usar SpriteRenderer.drawMode = Tiled (o Sliced) para poder ajustar size.
-///  - Los sprites deben estar orientados con su "longitud" a lo largo del eje Y (up).
-///  - Ajustar capLength para que coincida con la longitud en unidades del sprite cap (o medir con bounds).
-/// </summary>
 [ExecuteAlways]
 public class GomiArmRenderer : MonoBehaviour
 {
@@ -25,9 +14,9 @@ public class GomiArmRenderer : MonoBehaviour
     public bool useTargetTransform = true;
 
     [Header("Sprite Renderers (children)")]
-    public SpriteRenderer capStart;    // joint near shoulder
-    public SpriteRenderer capMid;      // tiled middle segment
-    public SpriteRenderer capEnd;      // joint near hand
+    public SpriteRenderer capStart;
+    public SpriteRenderer capMid;
+    public SpriteRenderer capEnd;
 
     [Header("Tuning")]
     [Tooltip("Longitud en unidades (world units) que ocupa cada cap. Si 0, se calcula desde sprite bounds (si existe).")]
@@ -47,14 +36,12 @@ public class GomiArmRenderer : MonoBehaviour
     [Tooltip("Si true, se escala caps para seguir 'thickness' (puede romper diseño si sprite no pensado para eso).")]
     public bool scaleCapsWithThickness = true;
 
-    // internal
     Vector3 prevMidScale = Vector3.one;
     Vector3 velocityPos;
     float velocityRot;
 
     private void Reset()
     {
-        // Busca hijos por nombre común si se añaden manualmente
         if (capStart == null) capStart = transform.Find("cap_start")?.GetComponent<SpriteRenderer>();
         if (capMid == null) capMid = transform.Find("cap_mid")?.GetComponent<SpriteRenderer>();
         if (capEnd == null) capEnd = transform.Find("cap_end")?.GetComponent<SpriteRenderer>();
@@ -62,7 +49,6 @@ public class GomiArmRenderer : MonoBehaviour
 
     private void OnValidate()
     {
-        // asegura que middle tenga drawMode decente en editor
         if (capMid != null)
         {
 #if UNITY_EDITOR
@@ -82,11 +68,19 @@ public class GomiArmRenderer : MonoBehaviour
 
     private void LateUpdate()
     {
+
         if (shoulder == null) return;
 
-        Vector3 targetWorld = useTargetTransform && targetTransform != null
-            ? (Vector3)targetTransform.position
-            : (Vector3)targetPositionOverride;
+        Vector3 targetWorld;
+
+        if (useTargetTransform && targetTransform != null)
+        {
+            targetWorld = targetTransform.position;
+        }
+        else
+        {
+            targetWorld = shoulder.position;
+        }
 
         UpdateArmVisual(shoulder.position, targetWorld, Time.deltaTime);
     }
@@ -106,11 +100,9 @@ public class GomiArmRenderer : MonoBehaviour
 
         Vector3 dirNorm = dir.normalized;
 
-        // determine cap length
         float capLen = capLength;
         if (capLen <= 0f)
         {
-            // try to estimate from capStart sprite bounds (y-axis)
             if (capStart != null && capStart.sprite != null)
             {
                 capLen = capStart.sprite.bounds.size.y * capStart.transform.lossyScale.y;
@@ -125,11 +117,9 @@ public class GomiArmRenderer : MonoBehaviour
             }
         }
 
-        // clamp cap lengths if too big relative to totalLength
         float usable = Mathf.Max(0f, totalLength - 2f * capLen);
         if (usable <= 0f)
         {
-            // overlaps caps: place caps along the line proportionally
             Vector3 startCapPos = startWorld;
             Vector3 endCapPos = endWorld;
 
@@ -140,24 +130,18 @@ public class GomiArmRenderer : MonoBehaviour
             return;
         }
 
-        // positions
         Vector3 startCapWorld = startWorld + dirNorm * (0f); // capStart pivot at shoulder
         Vector3 endCapWorld = startWorld + dirNorm * totalLength; // end at anchor
 
-        // mid center position = shoulder + dirNorm * (capLen + usable/2)
         Vector3 midCenter = startWorld + dirNorm * (capLen + usable * 0.5f);
 
-        // rotation (angle)
         float angle = Mathf.Atan2(dirNorm.y, dirNorm.x) * Mathf.Rad2Deg - 90f; // sprite up = Y
         if (smoothSpeed > 0f)
         {
-            // smooth position and rotation for nicer visuals
             Vector3 curPos = transform.position;
-            Vector3 targetPos = transform.position; // parent pivot not moving: we transform children directly
-            // We will lerp children individually to midCenter etc.
+            Vector3 targetPos = transform.position;
         }
 
-        // apply transforms (caps and middle)
         SetCapTransform(capStart, startWorld, dirNorm, thickness);
         SetCapTransform(capEnd, endCapWorld, dirNorm, thickness);
 
@@ -165,18 +149,13 @@ public class GomiArmRenderer : MonoBehaviour
         {
             capMid.enabled = true;
 
-            // place middle
             capMid.transform.position = midCenter;
             capMid.transform.up = dirNorm;
 
-            // set thickness and length (SpriteRenderer.size works when drawMode = Tiled or Sliced)
             if (useTiledMiddle)
             {
-                // ensure drawMode is tiled
                 capMid.drawMode = SpriteDrawMode.Tiled;
 
-                // size.x is width along local X, size.y is height along local Y
-                // our mid sprite oriented along Y - so set y = usable, x = thickness
                 Vector2 newSize = new Vector2(thickness, usable);
                 capMid.size = newSize;
             }
@@ -198,7 +177,6 @@ public class GomiArmRenderer : MonoBehaviour
     {
         if (cap == null) return;
 
-        // position: place the cap so that its pivot aligns with the seam.
         // Assumes cap sprite pivot is at the base (bottom) or centered depending on art; allow minor offset via inspector later.
         cap.transform.position = worldPos;
         cap.transform.up = dirNorm;
