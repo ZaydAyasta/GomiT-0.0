@@ -35,6 +35,7 @@ public class PlayerController : MonoBehaviour
     private enum HoldState { Normal, Holding }
     private HoldState holdState = HoldState.Normal;
     private GrappableObject currentAnchor;
+    private Transform lastArmGrip = null;
     private Vector2 holdOffset;
 
     [Header("Holding Movement Settings")]
@@ -79,9 +80,20 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("isInAir", isInAir);
 
         bool isCrouching;
-        if (holdState == HoldState.Holding)
+        if (holdState == HoldState.Holding){
             isCrouching = input.CrouchHeld;
-        else
+
+            if (armRenderer != null && currentAnchor != null)
+            {
+                Transform gripNow = input.CrouchHeld ? currentAnchor.crouchGrip : currentAnchor.standingGrip;
+                if (gripNow != lastArmGrip)
+                {
+                    lastArmGrip = gripNow;
+                    armRenderer.SetTargetTransform(gripNow);
+                    Debug.Log($"[PlayerController] Updated arm target while holding -> {(gripNow != null ? gripNow.name : "null")}, crouchHeld={input.CrouchHeld}");
+                }
+            }
+        }else
             isCrouching = input.CrouchHeld && isGrounded;
 
         animator.SetBool(isCrouchingHash, isCrouching);
@@ -203,6 +215,7 @@ public class PlayerController : MonoBehaviour
                 ? anchor.crouchGrip
                 : anchor.standingGrip;
 
+            lastArmGrip = grip;
             Debug.Log($"[PlayerController] EnterHolding -> arm target: {(grip != null ? grip.name : "null")}, crouching={isCrouchingOnEnter}");
             armRenderer.SetTargetTransform(grip);
         }
@@ -252,6 +265,7 @@ public class PlayerController : MonoBehaviour
         {
             // opción A: quitar target para que deje de usar transform
             armRenderer.SetTargetTransform(null);
+            lastArmGrip = null;
 
             // opción B (si quieres que el brazo se recoja hacia el hombro):
             // armRenderer.SetTargetPosition(armRenderer.shoulder != null ? (Vector2)armRenderer.shoulder.position : (Vector2)transform.position);
