@@ -7,10 +7,12 @@ public class GomiArmRenderer : MonoBehaviour
     [Tooltip("Transform del hombro (inicio del brazo).")]
     public Transform shoulder;
 
-    [Tooltip("Transform objetivo (puede ser anchor.transform o un Vector3 world pos).")]
+    [Tooltip("Transform objetivo.")]
     public Transform targetTransform;
+
     public Vector2 targetPositionOverride;
-    [Tooltip("Si true se usa targetTransform; si false se toma targetPositionOverride.")]
+
+    [Tooltip("Si true usa targetTransform.")]
     public bool useTargetTransform = true;
 
     [Header("Sprite Renderers (children)")]
@@ -19,26 +21,30 @@ public class GomiArmRenderer : MonoBehaviour
     public SpriteRenderer capEnd;
 
     [Header("Tuning")]
-    [Tooltip("Longitud en unidades (world units) que ocupa cada cap. Si 0, se calcula desde sprite bounds (si existe).")]
     public float capLength = 0.2f;
-
-    [Tooltip("Grosor (world units) del brazo (y size de la pieza middle).")]
     public float thickness = 0.25f;
 
-    [Tooltip("Interpolación para suavizar rotación/posicion (0 snap, >0 smoothing).")]
     [Range(0f, 20f)]
     public float smoothSpeed = 12f;
 
-    [Tooltip("Si true, el middle se renderiza como Tiled y su size se actualiza vía SpriteRenderer.size.")]
     public bool useTiledMiddle = true;
 
     [Header("Optional")]
-    [Tooltip("Si true, se escala caps para seguir 'thickness' (puede romper diseño si sprite no pensado para eso).")]
     public bool scaleCapsWithThickness = true;
+
+    [Header("Holding switch cooldown")]
+    [Tooltip("Tiempo de transición entre targets.")]
+    public float switchCooldown = 0.12f;
 
     Vector3 prevMidScale = Vector3.one;
     Vector3 velocityPos;
     float velocityRot;
+
+    // switching
+    bool isSwitching = false;
+    Vector3 switchFromWorld;
+    Vector3 switchToWorld;
+    float switchStartTime;
 
     private void Reset()
     {
@@ -56,91 +62,97 @@ public class GomiArmRenderer : MonoBehaviour
             {
                 if (capMid != null)
                 {
-                    if (useTiledMiddle)
-                        capMid.drawMode = SpriteDrawMode.Tiled;
-                    else
-                        capMid.drawMode = SpriteDrawMode.Simple;
+                    capMid.drawMode = useTiledMiddle ? SpriteDrawMode.Tiled : SpriteDrawMode.Simple;
                 }
             };
 #endif
         }
     }
 
+    Vector3 GetCurrentTargetWorld()
+    {
+        if (useTargetTransform)
+        {
+            if (targetTransform != null)
+                return targetTransform.position;
+
+            return shoulder.position;
+        }
+
+        return targetPositionOverride;
+    }
+
     private void LateUpdate()
     {
-
         if (shoulder == null) return;
 
-        Vector3 targetWorld;
+        Vector3 currentTargetWorld;
 
-        if (useTargetTransform && targetTransform != null)
+        if (isSwitching)
         {
-            targetWorld = targetTransform.position;
+            float t = (Time.time - switchStartTime) / Mathf.Max(0.00001f, switchCooldown);
+
+            if (t >= 1f)
+            {
+                isSwitching = false;
+                currentTargetWorld = switchToWorld;
+            }
+            else
+            {
+                currentTargetWorld = Vector3.Lerp(switchFromWorld, switchToWorld, t);
+            }
         }
         else
         {
-            targetWorld = shoulder.position;
+            currentTargetWorld = GetCurrentTargetWorld();
         }
 
-        UpdateArmVisual(shoulder.position, targetWorld, Time.deltaTime);
+        UpdateArmVisual(shoulder.position, currentTargetWorld, Time.deltaTime);
     }
 
     void UpdateArmVisual(Vector3 startWorld, Vector3 endWorld, float dt)
     {
         Vector3 dir = endWorld - startWorld;
         float totalLength = dir.magnitude;
+
         if (totalLength < 0.0001f)
         {
-            // zero-length: hide middle and overlap caps
             if (capMid != null) capMid.enabled = false;
+
             if (capStart != null) capStart.transform.position = startWorld;
             if (capEnd != null) capEnd.transform.position = startWorld;
+
             return;
         }
 
         Vector3 dirNorm = dir.normalized;
 
         float capLen = capLength;
+
         if (capLen <= 0f)
         {
             if (capStart != null && capStart.sprite != null)
-            {
                 capLen = capStart.sprite.bounds.size.y * capStart.transform.lossyScale.y;
-            }
             else if (capEnd != null && capEnd.sprite != null)
-            {
                 capLen = capEnd.sprite.bounds.size.y * capEnd.transform.lossyScale.y;
-            }
             else
-            {
                 capLen = 0.1f;
-            }
         }
 
         float usable = Mathf.Max(0f, totalLength - 2f * capLen);
+
         if (usable <= 0f)
         {
-            Vector3 startCapPos = startWorld;
-            Vector3 endCapPos = endWorld;
-
-            SetCapTransform(capStart, startCapPos, dirNorm, thickness);
-            SetCapTransform(capEnd, endCapPos, dirNorm, thickness);
+            SetCapTransform(capStart, startWorld, dirNorm, thickness);
+            SetCapTransform(capEnd, endWorld, dirNorm, thickness);
 
             if (capMid != null) capMid.enabled = false;
+
             return;
         }
 
-        Vector3 startCapWorld = startWorld + dirNorm * (0f); // capStart pivot at shoulder
-        Vector3 endCapWorld = startWorld + dirNorm * totalLength; // end at anchor
-
+        Vector3 endCapWorld = startWorld + dirNorm * totalLength;
         Vector3 midCenter = startWorld + dirNorm * (capLen + usable * 0.5f);
-
-        float angle = Mathf.Atan2(dirNorm.y, dirNorm.x) * Mathf.Rad2Deg - 90f; // sprite up = Y
-        if (smoothSpeed > 0f)
-        {
-            Vector3 curPos = transform.position;
-            Vector3 targetPos = transform.position;
-        }
 
         SetCapTransform(capStart, startWorld, dirNorm, thickness);
         SetCapTransform(capEnd, endCapWorld, dirNorm, thickness);
@@ -155,20 +167,22 @@ public class GomiArmRenderer : MonoBehaviour
             if (useTiledMiddle)
             {
                 capMid.drawMode = SpriteDrawMode.Tiled;
-
-                Vector2 newSize = new Vector2(thickness, usable);
-                capMid.size = newSize;
+                capMid.size = new Vector2(thickness, usable);
             }
             else
             {
-                //fallback
-                Vector3 localScale = capMid.transform.localScale;
                 float spriteLen = 1f;
+
                 if (capMid.sprite != null)
                     spriteLen = capMid.sprite.bounds.size.y;
 
                 float scaleY = usable / Mathf.Max(0.0001f, spriteLen);
-                capMid.transform.localScale = new Vector3(thickness / Mathf.Max(0.0001f, capMid.sprite.bounds.size.x), scaleY, 1f);
+
+                capMid.transform.localScale = new Vector3(
+                    thickness / Mathf.Max(0.0001f, capMid.sprite.bounds.size.x),
+                    scaleY,
+                    1f
+                );
             }
         }
     }
@@ -177,34 +191,49 @@ public class GomiArmRenderer : MonoBehaviour
     {
         if (cap == null) return;
 
-        // Assumes cap sprite pivot is at the base (bottom) or centered depending on art; allow minor offset via inspector later.
         cap.transform.position = worldPos;
         cap.transform.up = dirNorm;
 
-        if (scaleCapsWithThickness)
+        if (scaleCapsWithThickness && cap.sprite != null)
         {
-            // scale uniformly in local X to match thickness roughly
-            if (cap.sprite != null)
+            float spriteWidth = cap.sprite.bounds.size.x;
+
+            if (spriteWidth > 0f)
             {
-                float spriteWidth = cap.sprite.bounds.size.x;
-                if (spriteWidth > 0f)
-                {
-                    float scaleX = thickness / spriteWidth;
-                    Vector3 s = cap.transform.localScale;
-                    cap.transform.localScale = new Vector3(scaleX, s.y, s.z);
-                }
+                float scaleX = thickness / spriteWidth;
+
+                Vector3 s = cap.transform.localScale;
+                cap.transform.localScale = new Vector3(scaleX, s.y, s.z);
             }
         }
     }
 
     public void SetTargetPosition(Vector2 worldPos)
     {
+        Vector3 currentWorld = GetCurrentTargetWorld();
+
+        switchFromWorld = currentWorld;
+        switchToWorld = worldPos;
+        switchStartTime = Time.time;
+
+        isSwitching = true;
+
         useTargetTransform = false;
         targetPositionOverride = worldPos;
     }
 
     public void SetTargetTransform(Transform t)
     {
+        Vector3 currentWorld = GetCurrentTargetWorld();
+
+        Vector3 newWorld = (t != null) ? t.position : shoulder.position;
+
+        switchFromWorld = currentWorld;
+        switchToWorld = newWorld;
+        switchStartTime = Time.time;
+
+        isSwitching = true;
+
         useTargetTransform = true;
         targetTransform = t;
     }
