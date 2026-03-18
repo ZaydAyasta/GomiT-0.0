@@ -63,11 +63,37 @@ public class PlayerController : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
+    void DebugAnimatorState()
+    {
+        if (animator == null) return;
+
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+
+        Debug.Log(
+            $"[ANIM DEBUG]\n" +
+            $"State: {state.shortNameHash}\n" +
+            $"NormalizedTime: {state.normalizedTime}\n" +
+            $"isHolding: {animator.GetBool("isHolding")}\n" +
+            $"isCrouching: {animator.GetBool("isCrouching")}\n" +
+            $"isGrounded: {animator.GetBool("isGrounded")}\n" +
+            $"Speed: {animator.GetFloat("Speed")}\n" +
+            $"IdleIndex: {animator.GetFloat("IdleIndex")}"
+        );
+    }
+
+
     private void Update()
     {
         CheckGround();
         UpdateWallCheckPosition();
         CheckWall();
+
+        debugTimer += Time.deltaTime;
+        if (debugTimer >= debugInterval)
+        {
+            debugTimer = 0f;
+            DebugAnimatorState();
+        }
 
         float horizontalInput = input.Move.x;
         float speed = Mathf.Abs(horizontalInput);
@@ -119,7 +145,6 @@ public class PlayerController : MonoBehaviour
                 else if (holdOffset.x < -0.01f) spriteRenderer.flipX = true;
             }
 
-            // Permitir saltar desde hold: si se pulsa, salir del hold y aplicar salto.
             if (input.JumpPressed)
             {
                 JumpFromHold();
@@ -137,7 +162,6 @@ public class PlayerController : MonoBehaviour
             else if (horizontalInput < -0.01f) spriteRenderer.flipX = true;
         }
 
-        // Salto normal solo si en suelo
         if (input.JumpPressed && isGrounded)
             Jump();
     }
@@ -272,7 +296,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // Salto normal
     private void Jump()
     {
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
@@ -280,23 +303,17 @@ public class PlayerController : MonoBehaviour
         animator.SetTrigger("Jump");
     }
 
-    // Salto cuando vienes de Hold: salir del hold y ejecutar salto limpio.
     private void JumpFromHold()
     {
-        // Salimos primero del modo hold (restaurando bodyType y gravedad)
         ExitHolding();
 
-        // Asegurarnos de que el rigidbody está en modo dinámico para que AddForce funcione
         if (rb.bodyType != RigidbodyType2D.Dynamic)
             rb.bodyType = RigidbodyType2D.Dynamic;
 
-        // Resetear vertical para aplicar impulso consistente
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
 
-        // Aplicar impulso
         rb.AddForce(Vector2.up * data.jumpForce, ForceMode2D.Impulse);
 
-        // Trigger de animación de salto
         animator.SetTrigger("Jump");
     }
 
@@ -359,8 +376,6 @@ public class PlayerController : MonoBehaviour
             Vector3 gpos = currentAnchor.transform.position;
             Gizmos.DrawWireSphere(gpos, maxHoldDistance);
             
-            //no se si esto funcionará xd
-            //gomiArmRenderer.SetTargetTransform(currentAnchor.transform);
         }
     }
 }
