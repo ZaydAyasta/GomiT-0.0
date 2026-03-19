@@ -16,6 +16,7 @@ public class PlayerController : MonoBehaviour
     private SpriteRenderer spriteRenderer;
 
     private readonly int isCrouchingHash = Animator.StringToHash("isCrouching");
+    private readonly int holdSpeedHash = Animator.StringToHash("HoldSpeed");
 
     [Header("Wall Check")]
     public Transform wallCheck;
@@ -39,14 +40,9 @@ public class PlayerController : MonoBehaviour
     private Vector2 holdOffset;
 
     [Header("Holding Movement Settings")]
-    [Tooltip("Máxima distancia horizontal desde anchor")]
     public float maxHoldDistance = 1.5f;
-    [Tooltip("Velocidad durante el anchor (m/s)")]
     public float holdMoveSpeed = 2.0f;
-    [Tooltip("Si true, posición vertical bloqueada respecto al grip.")]
     public bool holdVerticalLock = true;
-
-    [Tooltip("Si true, usa física durante el hold (gravedad activa). Si false, cuerpo kinematic y se posiciona manualmente.")]
     public bool holdUsePhysics = true;
 
     private RigidbodyType2D prevBodyType;
@@ -66,34 +62,13 @@ public class PlayerController : MonoBehaviour
     void DebugAnimatorState()
     {
         if (animator == null) return;
-
-        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
-
-        Debug.Log(
-            $"[ANIM DEBUG]\n" +
-            $"State: {state.shortNameHash}\n" +
-            $"NormalizedTime: {state.normalizedTime}\n" +
-            $"isHolding: {animator.GetBool("isHolding")}\n" +
-            $"isCrouching: {animator.GetBool("isCrouching")}\n" +
-            $"isGrounded: {animator.GetBool("isGrounded")}\n" +
-            $"Speed: {animator.GetFloat("Speed")}\n" +
-            $"IdleIndex: {animator.GetFloat("IdleIndex")}"
-        );
     }
-
 
     private void Update()
     {
         CheckGround();
         UpdateWallCheckPosition();
         CheckWall();
-
-        debugTimer += Time.deltaTime;
-        if (debugTimer >= debugInterval)
-        {
-            debugTimer = 0f;
-            DebugAnimatorState();
-        }
 
         float horizontalInput = input.Move.x;
         float speed = Mathf.Abs(horizontalInput);
@@ -106,7 +81,8 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("isInAir", isInAir);
 
         bool isCrouching;
-        if (holdState == HoldState.Holding){
+        if (holdState == HoldState.Holding)
+        {
             isCrouching = input.CrouchHeld;
 
             if (armRenderer != null && currentAnchor != null)
@@ -116,11 +92,13 @@ public class PlayerController : MonoBehaviour
                 {
                     lastArmGrip = gripNow;
                     armRenderer.SetTargetTransform(gripNow);
-                    Debug.Log($"[PlayerController] Updated arm target while holding -> {(gripNow != null ? gripNow.name : "null")}, crouchHeld={input.CrouchHeld}");
                 }
             }
-        }else
+        }
+        else
+        {
             isCrouching = input.CrouchHeld && isGrounded;
+        }
 
         animator.SetBool(isCrouchingHash, isCrouching);
 
@@ -132,8 +110,8 @@ public class PlayerController : MonoBehaviour
 
         if (holdState == HoldState.Holding)
         {
-            GetComponent<PlayerAnimation>()?.SetSpeed(0f, false);
             animator.SetBool("isHolding", true);
+            animator.SetFloat(holdSpeedHash, Mathf.Abs(horizontalInput));
 
             float dx = horizontalInput * holdMoveSpeed * Time.deltaTime;
             holdOffset.x += dx;
@@ -155,6 +133,7 @@ public class PlayerController : MonoBehaviour
 
         GetComponent<PlayerAnimation>()?.SetSpeed(speed, isGrounded);
         animator.SetBool("isHolding", false);
+        animator.SetFloat(holdSpeedHash, 0f);
 
         if (spriteRenderer != null)
         {
@@ -170,7 +149,6 @@ public class PlayerController : MonoBehaviour
     {
         if (holdState == HoldState.Holding)
         {
-            // MODO A: usar física durante hold (recomendado para mantener gravedad)
             if (holdUsePhysics && currentAnchor != null)
             {
                 Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
@@ -185,8 +163,6 @@ public class PlayerController : MonoBehaviour
                 return;
             }
 
-            // MODO B: comportamiento legacy (kinematic + posicionamiento directo)
-            // Esto mantiene la lógica original: congelas Y y colocas transform directamente.
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
@@ -210,18 +186,10 @@ public class PlayerController : MonoBehaviour
 
     private void TryEnterHolding()
     {
-        if (highlighter == null)
-        {
-            Debug.LogWarning("[PlayerController] No highlighter asignado.");
-            return;
-        }
+        if (highlighter == null) return;
 
         GrappableObject g = highlighter.GetHighlighted();
-        if (g == null)
-        {
-            Debug.Log("[PlayerController] No hay nada holdeable cerca.");
-            return;
-        }
+        if (g == null) return;
 
         EnterHolding(g);
     }
@@ -240,7 +208,6 @@ public class PlayerController : MonoBehaviour
                 : anchor.standingGrip;
 
             lastArmGrip = grip;
-            Debug.Log($"[PlayerController] EnterHolding -> arm target: {(grip != null ? grip.name : "null")}, crouching={isCrouchingOnEnter}");
             armRenderer.SetTargetTransform(grip);
         }
 
@@ -287,12 +254,8 @@ public class PlayerController : MonoBehaviour
 
         if (armRenderer != null)
         {
-            // opción A: quitar target para que deje de usar transform
             armRenderer.SetTargetTransform(null);
             lastArmGrip = null;
-
-            // opción B (si quieres que el brazo se recoja hacia el hombro):
-            // armRenderer.SetTargetPosition(armRenderer.shoulder != null ? (Vector2)armRenderer.shoulder.position : (Vector2)transform.position);
         }
     }
 
@@ -311,7 +274,6 @@ public class PlayerController : MonoBehaviour
             rb.bodyType = RigidbodyType2D.Dynamic;
 
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
-
         rb.AddForce(Vector2.up * data.jumpForce, ForceMode2D.Impulse);
 
         animator.SetTrigger("Jump");
@@ -367,7 +329,7 @@ public class PlayerController : MonoBehaviour
         if (wallCheck != null)
         {
             Gizmos.color = Color.blue;
-            if (wallCheck != null) Gizmos.DrawWireCube(wallCheck.position, wallCheckSize);
+            Gizmos.DrawWireCube(wallCheck.position, wallCheckSize);
         }
 
         if (currentAnchor != null)
@@ -375,7 +337,6 @@ public class PlayerController : MonoBehaviour
             Gizmos.color = Color.yellow;
             Vector3 gpos = currentAnchor.transform.position;
             Gizmos.DrawWireSphere(gpos, maxHoldDistance);
-            
         }
     }
 }
