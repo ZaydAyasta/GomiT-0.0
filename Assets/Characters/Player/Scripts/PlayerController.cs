@@ -38,6 +38,7 @@ public class PlayerController : MonoBehaviour
     private GrappableObject currentAnchor;
     private Transform lastArmGrip = null;
     private Vector2 holdOffset;
+    private Vector2 holdStartOffset;
 
     [Header("Holding Movement Settings")]
     public float maxHoldDistance = 1.5f;
@@ -48,6 +49,7 @@ public class PlayerController : MonoBehaviour
     private RigidbodyType2D prevBodyType;
     private float prevGravityScale;
     private bool isCrouchingOnEnter = false;
+    private float movementLockedUntil;
 
     [Header("Arm Renderer")]
     public GomiArmRenderer armRenderer;
@@ -106,7 +108,7 @@ public class PlayerController : MonoBehaviour
             TryEnterHolding();
 
         if (holdState == HoldState.Holding && !input.GrabHeld)
-            ExitHolding();
+            ReleaseHoldingWithSlingshot();
 
         if (holdState == HoldState.Holding)
         {
@@ -115,7 +117,11 @@ public class PlayerController : MonoBehaviour
 
             float dx = horizontalInput * holdMoveSpeed * Time.deltaTime;
             holdOffset.x += dx;
-            holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
+            holdOffset.x = Mathf.Clamp(
+                holdOffset.x,
+                holdStartOffset.x - maxHoldDistance,
+                holdStartOffset.x + maxHoldDistance
+            );
 
             if (spriteRenderer != null)
             {
@@ -167,6 +173,9 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        if (Time.time < movementLockedUntil)
+            return;
+
         float baseSpeed = input.Move.x * (input.RunHeld ? data.runSpeed : data.walkSpeed);
 
         bool isCrouchingFixed = input.CrouchHeld && isGrounded;
@@ -213,7 +222,7 @@ public class PlayerController : MonoBehaviour
 
         Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
         holdOffset = (Vector2)transform.position - gripPos;
-        holdOffset.x = Mathf.Clamp(holdOffset.x, -maxHoldDistance, maxHoldDistance);
+        holdStartOffset = holdOffset;
 
         prevBodyType = rb.bodyType;
         prevGravityScale = rb.gravityScale;
@@ -257,6 +266,46 @@ public class PlayerController : MonoBehaviour
             armRenderer.SetTargetTransform(null);
             lastArmGrip = null;
         }
+    }
+
+    private void ReleaseHoldingWithSlingshot()
+    {
+        Vector2 launchVelocity = CalculateSlingshotLaunchVelocity();
+
+        ExitHolding();
+
+        if (launchVelocity == Vector2.zero)
+            return;
+
+        if (rb.bodyType != RigidbodyType2D.Dynamic)
+            rb.bodyType = RigidbodyType2D.Dynamic;
+
+        movementLockedUntil = Time.time + data.slingshotControlLockTime;
+        rb.linearVelocity = launchVelocity;
+    }
+
+    private Vector2 CalculateSlingshotLaunchVelocity()
+    {
+        if (data == null || currentAnchor == null)
+            return Vector2.zero;
+
+        Vector2 gripPos = currentAnchor.GetGripPosition(isCrouchingOnEnter);
+        Vector2 currentOffset = (Vector2)transform.position - gripPos;
+        Vector2 pullVector = currentOffset - holdStartOffset;
+
+        float stretch = pullVector.magnitude;
+        if (stretch < data.minSlingshotStretch)
+            return Vector2.zero;
+
+        float minSpeed = Mathf.Min(data.minSlingshotLaunchSpeed, data.maxSlingshotLaunchSpeed);
+        float maxSpeed = Mathf.Max(data.minSlingshotLaunchSpeed, data.maxSlingshotLaunchSpeed);
+        float speed = Mathf.Clamp(
+            stretch * Mathf.Max(0f, data.slingshotVelocityPerUnit),
+            minSpeed,
+            maxSpeed
+        );
+
+        return -pullVector.normalized * speed;
     }
 
     private void Jump()

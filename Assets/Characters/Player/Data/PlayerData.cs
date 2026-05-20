@@ -10,6 +10,22 @@ public class PlayerData : ScriptableObject
     public float deceleration = 30f;
     public float jumpForce = 8f;
 
+    [Header("Slingshot Launch")]
+    [Tooltip("Distancia minima de estiramiento antes de impulsar al jugador al soltar el agarre.")]
+    public float minSlingshotStretch = 0.25f;
+
+    [Tooltip("Velocidad generada por cada unidad de estiramiento.")]
+    public float slingshotVelocityPerUnit = 8f;
+
+    [Tooltip("Velocidad minima aplicada cuando el estiramiento supera el minimo.")]
+    public float minSlingshotLaunchSpeed = 3f;
+
+    [Tooltip("Velocidad maxima que puede generar la resortera.")]
+    public float maxSlingshotLaunchSpeed = 14f;
+
+    [Tooltip("Tiempo durante el que el movimiento normal no pisa la velocidad del lanzamiento.")]
+    public float slingshotControlLockTime = 0.2f;
+
     [Header("Idle Timers")]
     [Tooltip("Segundos en idle_normal hasta iniciar idle_transition")]
     public float idleToTransitionDelay = 15f;
